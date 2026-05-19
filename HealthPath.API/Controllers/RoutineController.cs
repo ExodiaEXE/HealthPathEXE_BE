@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using HealthPath.API.Models.DTOs;
 using HealthPath.API.Services;
+using HealthPath.API.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -45,12 +46,7 @@ public class RoutineController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRoutine([FromBody] CreateRoutineDto dto)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
-        {
-            return Unauthorized();
-        }
-
+        var userId = User.GetUserId();
         var response = await _routineService.CreateRoutineAsync(dto, userId);
         return Ok(response);
     }

@@ -1,4 +1,4 @@
-﻿using HealthPath.API.Services;
+using HealthPath.API.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HealthPath.API.Controllers

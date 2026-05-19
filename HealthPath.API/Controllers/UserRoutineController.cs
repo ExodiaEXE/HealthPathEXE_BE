@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using HealthPath.API.Models.DTOs;
 using HealthPath.API.Services;
+using HealthPath.API.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,12 +24,7 @@ public class UserRoutineController : ControllerBase
     [HttpPost("schedule")]
     public async Task<IActionResult> ScheduleRoutine([FromBody] CreateUserRoutineDto dto)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty)
-        {
-            return Unauthorized();
-        }
-
+        var userId = User.GetUserId();
         var response = await _userRoutineService.ScheduleRoutineAsync(dto, userId);
         if (!response.Success)
         {
@@ -40,12 +36,7 @@ public class UserRoutineController : ControllerBase
     [HttpPost("{id}/start")]
     public async Task<IActionResult> StartRoutine(Guid id)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty)
-        {
-            return Unauthorized();
-        }
-
+        var userId = User.GetUserId();
         var response = await _userRoutineService.StartRoutineAsync(id, userId);
         if (!response.Success)
         {
@@ -57,12 +48,7 @@ public class UserRoutineController : ControllerBase
     [HttpPost("{id}/complete")]
     public async Task<IActionResult> CompleteRoutine(Guid id, [FromBody] UserRoutineStatusUpdateDto dto)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty)
-        {
-            return Unauthorized();
-        }
-
+        var userId = User.GetUserId();
         var response = await _userRoutineService.CompleteRoutineAsync(id, dto, userId);
         if (!response.Success)
         {
@@ -74,12 +60,7 @@ public class UserRoutineController : ControllerBase
     [HttpPost("{id}/fail")]
     public async Task<IActionResult> FailRoutine(Guid id)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty)
-        {
-            return Unauthorized();
-        }
-
+        var userId = User.GetUserId();
         var response = await _userRoutineService.FailRoutineAsync(id, userId);
         if (!response.Success)
         {
@@ -94,23 +75,8 @@ public class UserRoutineController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
-        var userId = GetUserId();
-        if (userId == Guid.Empty)
-        {
-            return Unauthorized();
-        }
-
+        var userId = User.GetUserId();
         var response = await _userRoutineService.GetMyScheduleAsync(userId, date, page, pageSize);
         return Ok(response);
-    }
-
-    private Guid GetUserId()
-    {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (Guid.TryParse(userIdString, out var userId))
-        {
-            return userId;
-        }
-        return Guid.Empty;
     }
 }
