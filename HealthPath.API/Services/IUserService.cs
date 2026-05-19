@@ -6,5 +6,8 @@ namespace HealthPath.API.Services
     public interface IUserService
     {
         IEnumerable<UserDto> GetAllUsersForAdmin();
+
+        //Lấy thông tin của 1 user dựa vào ID
+        Task<UserDto?> GetMeAsync(Guid userId);
     }
 }

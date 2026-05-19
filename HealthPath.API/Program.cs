@@ -16,7 +16,7 @@ builder.Services.AddDbContext<HealthpathDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. Đăng ký các Service (Dependency Injection)
-builder.Services.AddScoped<IUserService, MockUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
+builder.Services.AddScoped<IUserService, SqlUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
 builder.Services.AddScoped<IAuthService, AuthService>();     // <-- MỚI THÊM: Đăng ký Service IAM
 builder.Services.AddScoped<IRoutineService, RoutineService>();
 builder.Services.AddScoped<IUserRoutineService, UserRoutineService>();
@@ -46,25 +46,9 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo { Title = "HealthPath API", Version = "v1" });
+// <-- CODE BẠN THÊM: Cấu hình Swagger có ổ khóa JWT (Mở rộng từ AddSwaggerGen cũ của ông)
+builder.Services.AddSwaggerGen();
 
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
-    {
-        Description = "Nhập trực tiếp JWT Token của bạn (không cần gõ chữ 'Bearer' ở trước)",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT"
-    });
-
-    c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
-    {
-        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new System.Collections.Generic.List<string>()
-    });
-});
 
 var app = builder.Build();
 
