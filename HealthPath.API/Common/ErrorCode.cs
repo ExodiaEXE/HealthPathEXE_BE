@@ -1,26 +1,26 @@
 namespace HealthPath.API.Common;
 
-public static class ErrorCode
+public enum ErrorCode
 {
     // Auth
-    public const string EMAIL_TAKEN = "EMAIL_TAKEN";
-    public const string INVALID_CREDENTIALS = "INVALID_CREDENTIALS";
+    EMAIL_TAKEN = 1001,
+    INVALID_CREDENTIALS = 1002,
+    UNAUTHORIZED = 1003,
+    FORBIDDEN = 1004,
 
     // Routine
-    public const string ROUTINE_NOT_FOUND = "ROUTINE_NOT_FOUND";
-    public const string PREMIUM_REQUIRED = "PREMIUM_REQUIRED";
-    public const string FORBIDDEN_SYSTEM_ROUTINE = "FORBIDDEN_SYSTEM_ROUTINE";
-    public const string CATEGORY_INVALID = "CATEGORY_INVALID";
+    ROUTINE_NOT_FOUND = 2001,
+    PREMIUM_REQUIRED = 2002,
+    FORBIDDEN_SYSTEM_ROUTINE = 2003,
+    CATEGORY_INVALID = 2004,
 
     // UserRoutine / State machine
-    public const string USER_ROUTINE_NOT_FOUND = "USER_ROUTINE_NOT_FOUND";
-    public const string INVALID_STATE_TRANSITION = "INVALID_STATE_TRANSITION";
-    public const string INSUFFICIENT_DURATION = "INSUFFICIENT_DURATION";
-    public const string ROUTINE_ALREADY_SCHEDULED = "ROUTINE_ALREADY_SCHEDULED";
+    USER_ROUTINE_NOT_FOUND = 3001,
+    INVALID_STATE_TRANSITION = 3002,
+    INSUFFICIENT_DURATION = 3003,
+    ROUTINE_ALREADY_SCHEDULED = 3004,
 
     // General
-    public const string VALIDATION_ERROR = "VALIDATION_ERROR";
-    public const string INTERNAL_ERROR = "INTERNAL_ERROR";
-    public const string UNAUTHORIZED = "UNAUTHORIZED";
-    public const string FORBIDDEN = "FORBIDDEN";
+    VALIDATION_ERROR = 9001,
+    INTERNAL_ERROR = 9999
 }

@@ -73,7 +73,7 @@ namespace HealthPath.Tests.Services
 
             // Assert
             result.Success.Should().BeFalse();
-            result.ErrorCode.Should().Be(ErrorCode.PREMIUM_REQUIRED);
+            result.ErrorCode.Should().Be(ErrorCode.PREMIUM_REQUIRED.ToString());
         }
 
         [Fact]

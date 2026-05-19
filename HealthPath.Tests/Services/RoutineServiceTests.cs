@@ -82,7 +82,7 @@ namespace HealthPath.Tests.Services
 
             // Assert
             result.Success.Should().BeFalse();
-            result.ErrorCode.Should().Be(ErrorCode.ROUTINE_NOT_FOUND);
+            result.ErrorCode.Should().Be(ErrorCode.ROUTINE_NOT_FOUND.ToString());
         }
 
         [Fact]
