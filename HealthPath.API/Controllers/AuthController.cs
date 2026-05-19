@@ -1,5 +1,6 @@
-﻿using HealthPath.API.Models;
+using HealthPath.API.Models;
 using HealthPath.API.Services;
+using HealthPath.API.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HealthPath.API.Controllers

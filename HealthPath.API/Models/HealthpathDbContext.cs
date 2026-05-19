@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,6 +56,10 @@ public partial class HealthpathDbContext : DbContext
     public virtual DbSet<UserRoutine> UserRoutines { get; set; }
 
     public virtual DbSet<UserSubscription> UserSubscriptions { get; set; }
+
+    public virtual DbSet<UserStats> UserStats { get; set; }
+
+    public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; }
 
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         //=> optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
@@ -579,7 +583,7 @@ public partial class HealthpathDbContext : DbContext
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Difficulty)
                 .HasMaxLength(20)
-                .HasDefaultValueSql("'nhe'::character varying")
+                .HasDefaultValueSql("'easy'::character varying")
                 .HasColumnName("difficulty");
             entity.Property(e => e.DurationMinutes)
                 .HasDefaultValue(10)
@@ -780,6 +784,14 @@ public partial class HealthpathDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
+            entity.Property(e => e.StartedAt).HasColumnName("started_at");
+            entity.Property(e => e.ActualDurationMinutes).HasColumnName("actual_duration_minutes");
+            entity.Property(e => e.ScoreEarned)
+                .HasDefaultValue(0)
+                .HasColumnName("score_earned");
+            entity.Property(e => e.ElapsedSeconds)
+                .HasDefaultValue(0)
+                .HasColumnName("elapsed_seconds");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
             entity.HasOne(d => d.Routine).WithMany(p => p.UserRoutines)
@@ -843,6 +855,68 @@ public partial class HealthpathDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.UserSubscriptions)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("user_subscriptions_user_id_fkey");
+        });
+
+        modelBuilder.Entity<UserStats>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("user_stats_pkey");
+            entity.ToTable("user_stats");
+            
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.StreakCurrent)
+                .HasDefaultValue(0)
+                .HasColumnName("streak_current");
+            entity.Property(e => e.StreakBest)
+                .HasDefaultValue(0)
+                .HasColumnName("streak_best");
+            entity.Property(e => e.StreakUpdatedDate).HasColumnName("streak_updated_date");
+            entity.Property(e => e.TotalScore)
+                .HasDefaultValue(0)
+                .HasColumnName("total_score");
+            entity.Property(e => e.AiInsights)
+                .HasColumnType("jsonb")
+                .HasColumnName("ai_insights");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.User).WithMany() // User has no UserStats navigation property right now, just keep it one-sided
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("user_stats_user_id_fkey");
+        });
+
+        modelBuilder.Entity<RecurringTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("recurring_templates_pkey");
+            entity.ToTable("recurring_templates");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.RoutineId).HasColumnName("routine_id");
+            entity.Property(e => e.DaysOfWeek)
+                .HasColumnType("jsonb")
+                .HasColumnName("days_of_week");
+            entity.Property(e => e.ScheduledTime).HasColumnName("scheduled_time");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("recurring_templates_user_id_fkey");
+
+            entity.HasOne(d => d.Routine).WithMany()
+                .HasForeignKey(d => d.RoutineId)
+                .HasConstraintName("recurring_templates_routine_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

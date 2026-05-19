@@ -1,4 +1,4 @@
-﻿namespace HealthPath.API.Models
+namespace HealthPath.API.Models
 {
     public class RegisterDto
     {
@@ -16,8 +16,6 @@
 
     public class AuthResponseDto
     {
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty; // Cái này để Mobile cầm đi làm mộc thông hành
     }
 }

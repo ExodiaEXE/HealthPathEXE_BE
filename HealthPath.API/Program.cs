@@ -17,6 +17,8 @@ builder.Services.AddDbContext<HealthpathDbContext>(options =>
 // 2. Đăng ký các Service (Dependency Injection)
 builder.Services.AddScoped<IUserService, MockUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
 builder.Services.AddScoped<IAuthService, AuthService>();     // <-- MỚI THÊM: Đăng ký Service IAM
+builder.Services.AddScoped<IRoutineService, RoutineService>();
+builder.Services.AddScoped<IUserRoutineService, UserRoutineService>();
 
 // 3. Mở CORS cho Front-end (Web/Mobile) gọi API không bị chặn
 builder.Services.AddCors(options =>
@@ -43,7 +45,25 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo { Title = "HealthPath API", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Description = "Nhập trực tiếp JWT Token của bạn (không cần gõ chữ 'Bearer' ở trước)",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    {
+        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new System.Collections.Generic.List<string>()
+    });
+});
 
 var app = builder.Build();
 
