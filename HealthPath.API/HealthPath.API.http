@@ -1,6 +1,14 @@
-@HealthPath.API_HostAddress = http://localhost:5048
+@HostAddress = https://localhost:7232
 
-GET {{HealthPath.API_HostAddress}}/weatherforecast/
-Accept: application/json
+### 1. Đăng nhập để lấy Token
+POST {{HostAddress}}/api/Auth/login
+Content-Type: application/json
 
-###
+{
+  "email": "danganhduc848@gmail.com",
+  "password": "12345"
+}
+
+### 2. Lấy Profile (Copy cái Token ở bước 1 dán đè lên chữ dán_token_vào_đây)
+GET {{HostAddress}}/api/Users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTI3MzYzNy0wYWEzLTQ4NjktODE4My0xNDExOTU1YjAxOWYiLCJlbWFpbCI6ImRhbmdhbmhkdWM4NDhAZ21haWwuY29tIiwiRnVsbE5hbWUiOiJkYW5nZGFvYW5oZHVjIiwibmJmIjoxNzc5MjA1NzUxLCJleHAiOjE3Nzk4MTA1NTEsImlhdCI6MTc3OTIwNTc1MX0.KOJbi8myXkRxVzgr8jzVR28Te1mco23uJaySqSXUgZM

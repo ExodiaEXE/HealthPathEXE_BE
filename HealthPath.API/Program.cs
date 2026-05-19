@@ -15,7 +15,7 @@ builder.Services.AddDbContext<HealthpathDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. Đăng ký các Service (Dependency Injection)
-builder.Services.AddScoped<IUserService, MockUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
+builder.Services.AddScoped<IUserService, SqlUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
 builder.Services.AddScoped<IAuthService, AuthService>();     // <-- MỚI THÊM: Đăng ký Service IAM
 
 // 3. Mở CORS cho Front-end (Web/Mobile) gọi API không bị chặn
@@ -43,7 +43,9 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// <-- CODE BẠN THÊM: Cấu hình Swagger có ổ khóa JWT (Mở rộng từ AddSwaggerGen cũ của ông)
 builder.Services.AddSwaggerGen();
+
 
 var app = builder.Build();
 
