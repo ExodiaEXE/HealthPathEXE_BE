@@ -21,8 +21,6 @@ public partial class UserRoutine
 
     public int? ActualDurationMinutes { get; set; }
 
-    public int ScoreEarned { get; set; } = 0;
-
     public int ElapsedSeconds { get; set; } = 0;
 
     public DateTime? DeletedAt { get; set; }

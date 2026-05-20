@@ -786,9 +786,7 @@ public partial class HealthpathDbContext : DbContext
                 .HasColumnName("updated_at");
             entity.Property(e => e.StartedAt).HasColumnName("started_at");
             entity.Property(e => e.ActualDurationMinutes).HasColumnName("actual_duration_minutes");
-            entity.Property(e => e.ScoreEarned)
-                .HasDefaultValue(0)
-                .HasColumnName("score_earned");
+
             entity.Property(e => e.ElapsedSeconds)
                 .HasDefaultValue(0)
                 .HasColumnName("elapsed_seconds");
@@ -873,12 +871,7 @@ public partial class HealthpathDbContext : DbContext
                 .HasDefaultValue(0)
                 .HasColumnName("streak_best");
             entity.Property(e => e.StreakUpdatedDate).HasColumnName("streak_updated_date");
-            entity.Property(e => e.TotalScore)
-                .HasDefaultValue(0)
-                .HasColumnName("total_score");
-            entity.Property(e => e.AiInsights)
-                .HasColumnType("jsonb")
-                .HasColumnName("ai_insights");
+
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");

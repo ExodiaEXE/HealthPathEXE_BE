@@ -15,10 +15,12 @@ namespace HealthPath.API.Controllers;
 public class UserRoutineController : ControllerBase
 {
     private readonly IUserRoutineService _userRoutineService;
+    private readonly IGamificationService _gamificationService;
 
-    public UserRoutineController(IUserRoutineService userRoutineService)
+    public UserRoutineController(IUserRoutineService userRoutineService, IGamificationService gamificationService)
     {
         _userRoutineService = userRoutineService;
+        _gamificationService = gamificationService;
     }
 
     [HttpPost("schedule")]
@@ -79,4 +81,45 @@ public class UserRoutineController : ControllerBase
         var response = await _userRoutineService.GetMyScheduleAsync(userId, date, page, pageSize);
         return Ok(response);
     }
+
+    [HttpGet("streak")]
+    public async Task<IActionResult> GetMyStreak()
+    {
+        var userId = User.GetUserId();
+        var response = await _gamificationService.GetUserStatsAsync(userId);
+        return Ok(response);
+    }
+
+    [HttpPost("recurring")]
+    public async Task<IActionResult> CreateRecurringTemplate([FromBody] CreateRecurringTemplateDto dto)
+    {
+        var userId = User.GetUserId();
+        var response = await _userRoutineService.CreateRecurringTemplateAsync(dto, userId);
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
+
+    [HttpGet("recurring")]
+    public async Task<IActionResult> GetMyRecurringTemplates()
+    {
+        var userId = User.GetUserId();
+        var response = await _userRoutineService.GetMyRecurringTemplatesAsync(userId);
+        return Ok(response);
+    }
+
+    [HttpDelete("recurring/{id}")]
+    public async Task<IActionResult> DeleteRecurringTemplate(Guid id)
+    {
+        var userId = User.GetUserId();
+        var response = await _userRoutineService.DeleteRecurringTemplateAsync(id, userId);
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+        return Ok(response);
+    }
 }
+
