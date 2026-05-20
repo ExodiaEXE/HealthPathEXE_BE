@@ -8,6 +8,7 @@ using HealthPath.API.Models.DTOs;
 using HealthPath.API.Services;
 using HealthPath.Tests.Helpers;
 using Xunit;
+using Moq;
 
 namespace HealthPath.Tests.Services
 {
@@ -17,7 +18,8 @@ namespace HealthPath.Tests.Services
         public async Task ScheduleRoutineAsync_Valid_ReturnsScheduledRoutine()
         {
             using var context = DbContextFactory.Create();
-            var service = new UserRoutineService(context);
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
 
             var userId = Guid.NewGuid();
             var routineId = Guid.NewGuid();
@@ -50,7 +52,8 @@ namespace HealthPath.Tests.Services
         public async Task ScheduleRoutineAsync_PremiumRoutine_WithoutPremiumUser_ReturnsFail()
         {
             using var context = DbContextFactory.Create();
-            var service = new UserRoutineService(context);
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
 
             var userId = Guid.NewGuid();
             var routineId = Guid.NewGuid();
@@ -80,7 +83,8 @@ namespace HealthPath.Tests.Services
         public async Task StartRoutineAsync_PendingStatus_ChangesToInProgress()
         {
             using var context = DbContextFactory.Create();
-            var service = new UserRoutineService(context);
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
 
             var userId = Guid.NewGuid();
             var routineId = Guid.NewGuid();
@@ -107,10 +111,11 @@ namespace HealthPath.Tests.Services
         }
 
         [Fact]
-        public async Task CompleteRoutineAsync_InProgressStatus_ChangesToCompletedAndCalculatesScore()
+        public async Task CompleteRoutineAsync_InProgressStatus_ChangesToCompletedAndTriggersGamification()
         {
             using var context = DbContextFactory.Create();
-            var service = new UserRoutineService(context);
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
 
             var userId = Guid.NewGuid();
             var routineId = Guid.NewGuid();
@@ -151,10 +156,295 @@ namespace HealthPath.Tests.Services
             result.Success.Should().BeTrue();
             result.Data!.Status.Should().Be("completed");
             result.Data.CompletedAt.Should().NotBeNull();
-            result.Data.ScoreEarned.Should().BeGreaterThan(0);
             
-            // Check UserStats creation/update
-            context.UserStats.Should().ContainSingle(s => s.UserId == userId);
+            // Verify Gamification logic was triggered
+            mockGamificationService.Verify(g => g.ProcessCompletionAsync(userRoutineId, userId), Times.Once);
+        }
+
+        [Fact]
+        public async Task CreateRecurringTemplateAsync_Valid_ReturnsSuccess()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var routineId = Guid.NewGuid();
+
+            context.Routines.Add(new Routine
+            {
+                Id = routineId,
+                Title = "Workout",
+                Category = "workout",
+                Difficulty = "easy",
+                IsPremium = false
+            });
+            await context.SaveChangesAsync();
+
+            var dto = new CreateRecurringTemplateDto
+            {
+                RoutineId = routineId,
+                DaysOfWeek = new System.Collections.Generic.List<int> { 1, 3, 5 },
+                ScheduledTime = "07:30:00"
+            };
+
+            // Act
+            var result = await service.CreateRecurringTemplateAsync(dto, userId);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.DaysOfWeek.Should().BeEquivalentTo(new[] { 1, 3, 5 });
+            result.Data.ScheduledTime.Should().Be("07:30:00");
+            result.Data.IsActive.Should().BeTrue();
+
+            context.RecurringTemplates.Should().ContainSingle();
+        }
+
+        [Fact]
+        public async Task CreateRecurringTemplateAsync_RoutineNotFound_ReturnsFail()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var dto = new CreateRecurringTemplateDto
+            {
+                RoutineId = Guid.NewGuid(),
+                DaysOfWeek = new System.Collections.Generic.List<int> { 1 },
+                ScheduledTime = "07:30:00"
+            };
+
+            // Act
+            var result = await service.CreateRecurringTemplateAsync(dto, userId);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.ErrorCode.Should().Be(ErrorCode.ROUTINE_NOT_FOUND.ToString());
+        }
+
+        [Fact]
+        public async Task CreateRecurringTemplateAsync_PremiumWithoutSub_ReturnsFail()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var routineId = Guid.NewGuid();
+
+            context.Routines.Add(new Routine
+            {
+                Id = routineId,
+                Title = "Workout",
+                Category = "workout",
+                Difficulty = "easy",
+                IsPremium = true
+            });
+            await context.SaveChangesAsync();
+
+            var dto = new CreateRecurringTemplateDto
+            {
+                RoutineId = routineId,
+                DaysOfWeek = new System.Collections.Generic.List<int> { 1 },
+                ScheduledTime = "07:30:00"
+            };
+
+            // Act
+            var result = await service.CreateRecurringTemplateAsync(dto, userId);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.ErrorCode.Should().Be(ErrorCode.PREMIUM_REQUIRED.ToString());
+        }
+
+        [Fact]
+        public async Task CreateRecurringTemplateAsync_InvalidTime_ReturnsFail()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var routineId = Guid.NewGuid();
+
+            context.Routines.Add(new Routine
+            {
+                Id = routineId,
+                Title = "Workout",
+                Category = "workout",
+                Difficulty = "easy",
+                IsPremium = false
+            });
+            await context.SaveChangesAsync();
+
+            var dto = new CreateRecurringTemplateDto
+            {
+                RoutineId = routineId,
+                DaysOfWeek = new System.Collections.Generic.List<int> { 1 },
+                ScheduledTime = "99:99:99" // Invalid time
+            };
+
+            // Act
+            var result = await service.CreateRecurringTemplateAsync(dto, userId);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.ErrorCode.Should().Be(ErrorCode.VALIDATION_ERROR.ToString());
+        }
+
+        [Fact]
+        public async Task CreateRecurringTemplateAsync_InvalidDays_ReturnsFail()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var routineId = Guid.NewGuid();
+
+            context.Routines.Add(new Routine
+            {
+                Id = routineId,
+                Title = "Workout",
+                Category = "workout",
+                Difficulty = "easy",
+                IsPremium = false
+            });
+            await context.SaveChangesAsync();
+
+            var dto = new CreateRecurringTemplateDto
+            {
+                RoutineId = routineId,
+                DaysOfWeek = new System.Collections.Generic.List<int> { 0, 8 }, // Invalid days
+                ScheduledTime = "07:30:00"
+            };
+
+            // Act
+            var result = await service.CreateRecurringTemplateAsync(dto, userId);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.ErrorCode.Should().Be(ErrorCode.VALIDATION_ERROR.ToString());
+        }
+
+        [Fact]
+        public async Task GetMyRecurringTemplatesAsync_ReturnsActiveOwnedTemplates()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var otherUserId = Guid.NewGuid();
+            var routineId = Guid.NewGuid();
+
+            context.Routines.Add(new Routine
+            {
+                Id = routineId,
+                Title = "Workout",
+                Category = "workout",
+                Difficulty = "easy",
+                IsPremium = false
+            });
+
+            // Owned template
+            context.RecurringTemplates.Add(new RecurringTemplate
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                RoutineId = routineId,
+                DaysOfWeek = "[1]",
+                ScheduledTime = new TimeOnly(7, 30),
+                IsActive = true
+            });
+
+            // Deleted owned template
+            context.RecurringTemplates.Add(new RecurringTemplate
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                RoutineId = routineId,
+                DaysOfWeek = "[2]",
+                ScheduledTime = new TimeOnly(8, 30),
+                IsActive = false,
+                DeletedAt = DateTime.UtcNow
+            });
+
+            // Other user's template
+            context.RecurringTemplates.Add(new RecurringTemplate
+            {
+                Id = Guid.NewGuid(),
+                UserId = otherUserId,
+                RoutineId = routineId,
+                DaysOfWeek = "[3]",
+                ScheduledTime = new TimeOnly(9, 30),
+                IsActive = true
+            });
+
+            await context.SaveChangesAsync();
+
+            // Act
+            var result = await service.GetMyRecurringTemplatesAsync(userId);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainSingle();
+            result.Data![0].UserId.Should().Be(userId);
+            result.Data[0].DaysOfWeek.Should().BeEquivalentTo(new[] { 1 });
+        }
+
+        [Fact]
+        public async Task DeleteRecurringTemplateAsync_Valid_SoftDeletesTemplate()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var templateId = Guid.NewGuid();
+            var routineId = Guid.NewGuid();
+
+            context.RecurringTemplates.Add(new RecurringTemplate
+            {
+                Id = templateId,
+                UserId = userId,
+                RoutineId = routineId,
+                DaysOfWeek = "[1]",
+                ScheduledTime = new TimeOnly(7, 30),
+                IsActive = true
+            });
+            await context.SaveChangesAsync();
+
+            // Act
+            var result = await service.DeleteRecurringTemplateAsync(templateId, userId);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            
+            var template = context.RecurringTemplates.First();
+            template.IsActive.Should().BeFalse();
+            template.DeletedAt.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task DeleteRecurringTemplateAsync_NotFoundOrNotOwned_ReturnsFail()
+        {
+            using var context = DbContextFactory.Create();
+            var mockGamificationService = new Mock<IGamificationService>();
+            var service = new UserRoutineService(context, mockGamificationService.Object);
+
+            var userId = Guid.NewGuid();
+            var templateId = Guid.NewGuid();
+
+            // Act
+            var result = await service.DeleteRecurringTemplateAsync(templateId, userId);
+
+            // Assert
+            result.Success.Should().BeFalse();
+            result.ErrorCode.Should().Be(ErrorCode.USER_ROUTINE_NOT_FOUND.ToString());
         }
     }
 }
+

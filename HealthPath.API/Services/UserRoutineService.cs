@@ -11,10 +11,12 @@ namespace HealthPath.API.Services;
 public class UserRoutineService : IUserRoutineService
 {
     private readonly HealthpathDbContext _context;
+    private readonly IGamificationService _gamificationService;
 
-    public UserRoutineService(HealthpathDbContext context)
+    public UserRoutineService(HealthpathDbContext context, IGamificationService gamificationService)
     {
         _context = context;
+        _gamificationService = gamificationService;
     }
 
     public async Task<ApiResponse<UserRoutineDto>> ScheduleRoutineAsync(CreateUserRoutineDto dto, Guid userId)
@@ -97,35 +99,10 @@ public class UserRoutineService : IUserRoutineService
         userRoutine.ElapsedSeconds = dto.ElapsedSeconds ?? 0;
         userRoutine.UpdatedAt = DateTime.UtcNow;
 
-        // Calculate score
-        int baseScore = userRoutine.Routine?.DurationMinutes ?? 10;
-        int difficultyMultiplier = userRoutine.Routine?.Difficulty switch
-        {
-            "hard" => 3,
-            "medium" => 2,
-            _ => 1
-        };
-        userRoutine.ScoreEarned = baseScore * difficultyMultiplier;
-
-        // Update UserStats
-        var userStats = await _context.UserStats.FirstOrDefaultAsync(s => s.UserId == userId);
-        if (userStats == null)
-        {
-            userStats = new UserStats
-            {
-                UserId = userId,
-                TotalScore = userRoutine.ScoreEarned,
-                UpdatedAt = DateTime.UtcNow
-            };
-            _context.UserStats.Add(userStats);
-        }
-        else
-        {
-            userStats.TotalScore += userRoutine.ScoreEarned;
-            userStats.UpdatedAt = DateTime.UtcNow;
-        }
-
         await _context.SaveChangesAsync();
+
+        // Trigger gamification (streak logic)
+        await _gamificationService.ProcessCompletionAsync(userRoutine.Id, userId);
 
         return ApiResponse<UserRoutineDto>.Ok(MapToDto(userRoutine), "Routine completed");
     }
@@ -184,6 +161,97 @@ public class UserRoutineService : IUserRoutineService
         return ApiResponse<PageResponse<UserRoutineDto>>.Ok(pageResponse);
     }
 
+    public async Task<ApiResponse<RecurringTemplateDto>> CreateRecurringTemplateAsync(CreateRecurringTemplateDto dto, Guid userId)
+    {
+        var routine = await _context.Routines.FindAsync(dto.RoutineId);
+        if (routine == null)
+        {
+            return ApiResponse<RecurringTemplateDto>.Fail("Routine not found", ErrorCode.ROUTINE_NOT_FOUND);
+        }
+
+        if (routine.IsPremium)
+        {
+            var hasActiveSubscription = await _context.UserSubscriptions
+                .AnyAsync(s => s.UserId == userId && s.Status == "active" && s.ExpiresAt > DateTime.UtcNow);
+
+            if (!hasActiveSubscription)
+            {
+                return ApiResponse<RecurringTemplateDto>.Fail("Premium subscription is required for this routine", ErrorCode.PREMIUM_REQUIRED);
+            }
+        }
+
+        if (dto.DaysOfWeek == null || dto.DaysOfWeek.Count == 0)
+        {
+            return ApiResponse<RecurringTemplateDto>.Fail("DaysOfWeek cannot be empty", ErrorCode.VALIDATION_ERROR);
+        }
+
+        if (dto.DaysOfWeek.Any(d => d < 1 || d > 7))
+        {
+            return ApiResponse<RecurringTemplateDto>.Fail("Days of week must be between 1 (Monday) and 7 (Sunday)", ErrorCode.VALIDATION_ERROR);
+        }
+
+        if (!TimeOnly.TryParse(dto.ScheduledTime, out var scheduledTime))
+        {
+            return ApiResponse<RecurringTemplateDto>.Fail("Invalid ScheduledTime format. Expected HH:mm:ss", ErrorCode.VALIDATION_ERROR);
+        }
+
+        var template = new RecurringTemplate
+        {
+            UserId = userId,
+            RoutineId = dto.RoutineId,
+            DaysOfWeek = System.Text.Json.JsonSerializer.Serialize(dto.DaysOfWeek),
+            ScheduledTime = scheduledTime,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.RecurringTemplates.Add(template);
+        await _context.SaveChangesAsync();
+
+        var resultDto = MapToTemplateDto(template);
+        resultDto.Routine = new RoutineDto
+        {
+            Id = routine.Id,
+            Title = routine.Title,
+            Category = routine.Category,
+            Difficulty = routine.Difficulty,
+            DurationMinutes = routine.DurationMinutes,
+            IsPremium = routine.IsPremium,
+            ThumbnailUrl = routine.ThumbnailUrl
+        };
+
+        return ApiResponse<RecurringTemplateDto>.Ok(resultDto, "Recurring template created successfully");
+    }
+
+    public async Task<ApiResponse<System.Collections.Generic.List<RecurringTemplateDto>>> GetMyRecurringTemplatesAsync(Guid userId)
+    {
+        var templates = await _context.RecurringTemplates
+            .Include(t => t.Routine)
+            .Where(t => t.UserId == userId && t.DeletedAt == null)
+            .ToListAsync();
+
+        var dtos = templates.Select(MapToTemplateDto).ToList();
+        return ApiResponse<System.Collections.Generic.List<RecurringTemplateDto>>.Ok(dtos);
+    }
+
+    public async Task<ApiResponse<object>> DeleteRecurringTemplateAsync(Guid templateId, Guid userId)
+    {
+        var template = await _context.RecurringTemplates
+            .FirstOrDefaultAsync(t => t.Id == templateId && t.UserId == userId && t.DeletedAt == null);
+
+        if (template == null)
+        {
+            return ApiResponse<object>.Fail("Recurring template not found", ErrorCode.USER_ROUTINE_NOT_FOUND);
+        }
+
+        template.IsActive = false;
+        template.DeletedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<object>.Ok(null, "Recurring template deleted successfully");
+    }
+
     private static UserRoutineDto MapToDto(UserRoutine entity)
     {
         return new UserRoutineDto
@@ -196,7 +264,6 @@ public class UserRoutineService : IUserRoutineService
             StartedAt = entity.StartedAt,
             CompletedAt = entity.CompletedAt,
             ActualDurationMinutes = entity.ActualDurationMinutes,
-            ScoreEarned = entity.ScoreEarned,
             ElapsedSeconds = entity.ElapsedSeconds,
             CreatedAt = entity.CreatedAt,
             Routine = entity.Routine != null ? new RoutineDto
@@ -211,4 +278,40 @@ public class UserRoutineService : IUserRoutineService
             } : null
         };
     }
+
+    private static RecurringTemplateDto MapToTemplateDto(RecurringTemplate entity)
+    {
+        System.Collections.Generic.List<int> daysList;
+        try
+        {
+            daysList = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<int>>(entity.DaysOfWeek) 
+                       ?? new System.Collections.Generic.List<int>();
+        }
+        catch
+        {
+            daysList = new System.Collections.Generic.List<int>();
+        }
+
+        return new RecurringTemplateDto
+        {
+            Id = entity.Id,
+            UserId = entity.UserId,
+            RoutineId = entity.RoutineId,
+            DaysOfWeek = daysList,
+            ScheduledTime = entity.ScheduledTime.ToString("HH:mm:ss"),
+            IsActive = entity.IsActive,
+            CreatedAt = entity.CreatedAt,
+            Routine = entity.Routine != null ? new RoutineDto
+            {
+                Id = entity.Routine.Id,
+                Title = entity.Routine.Title,
+                Category = entity.Routine.Category,
+                Difficulty = entity.Routine.Difficulty,
+                DurationMinutes = entity.Routine.DurationMinutes,
+                IsPremium = entity.Routine.IsPremium,
+                ThumbnailUrl = entity.Routine.ThumbnailUrl
+            } : null
+        };
+    }
 }
+

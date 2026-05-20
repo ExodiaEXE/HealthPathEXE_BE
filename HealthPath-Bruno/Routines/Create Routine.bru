@@ -1,0 +1,27 @@
+meta {
+  name: Create Routine
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/Routine
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "title": "Morning Warmup stretch",
+    "description": "5 minutes of light morning stretching to kickstart your day.",
+    "category": "Stretching",
+    "difficulty": "easy",
+    "durationMinutes": 5,
+    "isPremium": false,
+    "thumbnailUrl": "https://example.com/morning.jpg"
+  }
+}

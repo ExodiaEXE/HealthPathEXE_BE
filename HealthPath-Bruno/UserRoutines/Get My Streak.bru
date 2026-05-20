@@ -1,0 +1,15 @@
+meta {
+  name: Get My Streak
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/UserRoutine/streak
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
