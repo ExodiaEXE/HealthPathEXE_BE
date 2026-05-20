@@ -1,5 +1,6 @@
 using HealthPath.API.Models;
 using HealthPath.API.Services;
+using HealthPath.API.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -17,6 +18,8 @@ builder.Services.AddDbContext<HealthpathDbContext>(options =>
 // 2. Đăng ký các Service (Dependency Injection)
 builder.Services.AddScoped<IUserService, SqlUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
 builder.Services.AddScoped<IAuthService, AuthService>();     // <-- MỚI THÊM: Đăng ký Service IAM
+builder.Services.AddScoped<IRoutineService, RoutineService>();
+builder.Services.AddScoped<IUserRoutineService, UserRoutineService>();
 
 // 3. Mở CORS cho Front-end (Web/Mobile) gọi API không bị chặn
 builder.Services.AddCors(options =>
@@ -48,6 +51,9 @@ builder.Services.AddSwaggerGen();
 
 
 var app = builder.Build();
+
+// Đăng ký Middleware xử lý lỗi tập trung đầu tiên trong pipeline
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

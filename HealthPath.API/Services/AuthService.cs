@@ -1,4 +1,5 @@
-﻿using HealthPath.API.Models;
+using HealthPath.API.Models;
+using HealthPath.API.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -19,12 +20,12 @@ namespace HealthPath.API.Services
             _configuration = configuration;
         }
 
-        public async Task<AuthResponseDto> RegisterAsync(RegisterDto request)
+        public async Task<ApiResponse<object>> RegisterAsync(RegisterDto request)
         {
             // 1. Kiểm tra email trùng
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
             {
-                return new AuthResponseDto { Success = false, Message = "Email này đã được sử dụng!" };
+                return ApiResponse<object>.Fail("Email này đã được sử dụng!", ErrorCode.EMAIL_TAKEN);
             }
 
             // 2. Băm (Hash) mật khẩu - TUYỆT ĐỐI KHÔNG lưu pass trần
@@ -45,28 +46,28 @@ namespace HealthPath.API.Services
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
-            return new AuthResponseDto { Success = true, Message = "Đăng ký thành công!" };
+            return ApiResponse<object>.Ok(new { }, "Đăng ký thành công!");
         }
 
-        public async Task<AuthResponseDto> LoginAsync(LoginDto request)
+        public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto request)
         {
             // 1. Tìm User
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
             {
-                return new AuthResponseDto { Success = false, Message = "Sai email hoặc mật khẩu!" };
+                return ApiResponse<AuthResponseDto>.Fail("Sai email hoặc mật khẩu!", ErrorCode.INVALID_CREDENTIALS);
             }
 
             // 2. Kiểm tra mật khẩu có khớp với cục Hash trong DB không
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
-                return new AuthResponseDto { Success = false, Message = "Sai email hoặc mật khẩu!" };
+                return ApiResponse<AuthResponseDto>.Fail("Sai email hoặc mật khẩu!", ErrorCode.INVALID_CREDENTIALS);
             }
 
             // 3. Tạo Token (Thẻ thông hành)
             var token = GenerateJwtToken(user);
 
-            return new AuthResponseDto { Success = true, Message = "Đăng nhập thành công!", Token = token };
+            return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto { Token = token }, "Đăng nhập thành công!");
         }
 
         private string GenerateJwtToken(User user)

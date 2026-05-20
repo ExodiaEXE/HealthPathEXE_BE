@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HealthPath.API.Models;
@@ -15,7 +15,15 @@ public partial class UserRoutine
 
     public DateTime? ScheduledAt { get; set; }
 
+    public DateTime? StartedAt { get; set; }
+
     public DateTime? CompletedAt { get; set; }
+
+    public int? ActualDurationMinutes { get; set; }
+
+    public int ScoreEarned { get; set; } = 0;
+
+    public int ElapsedSeconds { get; set; } = 0;
 
     public DateTime? DeletedAt { get; set; }
 

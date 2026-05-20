@@ -1,0 +1,26 @@
+namespace HealthPath.API.Common;
+
+public enum ErrorCode
+{
+    // Auth
+    EMAIL_TAKEN = 1001,
+    INVALID_CREDENTIALS = 1002,
+    UNAUTHORIZED = 1003,
+    FORBIDDEN = 1004,
+
+    // Routine
+    ROUTINE_NOT_FOUND = 2001,
+    PREMIUM_REQUIRED = 2002,
+    FORBIDDEN_SYSTEM_ROUTINE = 2003,
+    CATEGORY_INVALID = 2004,
+
+    // UserRoutine / State machine
+    USER_ROUTINE_NOT_FOUND = 3001,
+    INVALID_STATE_TRANSITION = 3002,
+    INSUFFICIENT_DURATION = 3003,
+    ROUTINE_ALREADY_SCHEDULED = 3004,
+
+    // General
+    VALIDATION_ERROR = 9001,
+    INTERNAL_ERROR = 9999
+}
