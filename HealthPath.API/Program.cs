@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
+using HealthPath.API.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,14 @@ builder.Services.AddScoped<IUserService, SqlUserService>(); // Giữ nguyên Moc
 builder.Services.AddScoped<IAuthService, AuthService>();     // <-- MỚI THÊM: Đăng ký Service IAM
 builder.Services.AddScoped<IRoutineService, RoutineService>();
 builder.Services.AddScoped<IUserRoutineService, UserRoutineService>();
+builder.Services.AddScoped<IGamificationService, GamificationService>();
+builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRecurringRoutineJob, HealthPath.API.BackgroundJobs.RecurringRoutineJob>();
+builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IMissDetectionJob, HealthPath.API.BackgroundJobs.MissDetectionJob>();
+
+// 5. Đăng ký các dịch vụ bổ sung qua Extension Methods (Notification, File Storage, Hangfire)
+builder.Services.AddNotificationServices();
+builder.Services.AddFileStorageServices(builder.Configuration);
+builder.Services.AddHangfireServices(builder.Configuration);
 
 // 3. Mở CORS cho Front-end (Web/Mobile) gọi API không bị chặn
 builder.Services.AddCors(options =>
@@ -44,6 +53,21 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
         ValidateIssuer = false, // Đồ án sinh viên để false cho dễ thở, lên thực tế cấu hình sau
         ValidateAudience = false
+    };
+
+    // Hỗ trợ nhận Token từ Query String của SignalR WebSocket
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -88,5 +112,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<HealthPath.API.Services.Hubs.NotificationHub>("/hubs/notification");
+
+// 6. Kích hoạt Hangfire Dashboard & các Recurring Jobs qua Extension Method
+app.UseHangfireJobs();
 
 app.Run();

@@ -1,0 +1,22 @@
+meta {
+  name: Get Routines
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/Routine
+  body: none
+  auth: none
+}
+
+params:query {
+  ~category: Exercise
+  ~difficulty: Easy
+  ~page: 1
+  ~pageSize: 10
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:5048
+}

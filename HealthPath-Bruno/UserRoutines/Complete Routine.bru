@@ -1,0 +1,27 @@
+meta {
+  name: Complete Routine
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/UserRoutine/:id/complete
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+params:path {
+  id: 00000000-0000-0000-0000-000000000000
+}
+
+body:json {
+  {
+    "status": "completed",
+    "elapsedSeconds": 300,
+    "actualDurationMinutes": 5
+  }
+}

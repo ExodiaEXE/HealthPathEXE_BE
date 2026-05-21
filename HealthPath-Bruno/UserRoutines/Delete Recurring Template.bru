@@ -1,0 +1,15 @@
+meta {
+  name: Delete Recurring Template
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/UserRoutine/recurring/00000000-0000-0000-0000-000000000000
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

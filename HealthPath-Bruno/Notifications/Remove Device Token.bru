@@ -1,0 +1,19 @@
+meta {
+  name: Remove Device Token
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/Notification/device-token?token=fcm_token_sample_123456
+  body: none
+  auth: none
+}
+
+params:query {
+  token: fcm_token_sample_123456
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

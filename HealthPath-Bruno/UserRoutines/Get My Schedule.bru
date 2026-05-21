@@ -1,0 +1,21 @@
+meta {
+  name: Get My Schedule
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/UserRoutine/my-schedule
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+params:query {
+  ~date: 2026-05-20
+  ~page: 1
+  ~pageSize: 10
+}

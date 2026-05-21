@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthPath - SignalR Real-Time Notification Test Client</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- SignalR Client Library via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+    <!-- Tailwind CSS for modern aesthetics (using official rule confirm logic) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Outfit', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+                        'glow': '0 0 15px rgba(99, 102, 241, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 50%, #111827 0%, #030712 100%);
+            min-height: 100vh;
+            color: #f3f4f6;
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .active-dot {
+            box-shadow: 0 0 10px #10b981, 0 0 20px #10b981;
+        }
+        .inactive-dot {
+            box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center justify-center">
+
+    <!-- Notification Container for Floating Toasts -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <div class="w-full max-w-5xl flex flex-col gap-6">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-800">
+            <div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-500 bg-clip-text text-transparent">
+                    HealthPath Real-time Client
+                </h1>
+                <p class="text-sm text-gray-400 mt-1">Cơ cụ kiểm thử thông báo SignalR WebSocket và giả lập API</p>
+            </div>
+            
+            <!-- Connection Status Badge -->
+            <div class="flex items-center gap-3 bg-gray-900/60 border border-gray-800 px-4 py-2 rounded-full self-start md:self-auto">
+                <span id="status-dot" class="w-3.5 h-3.5 rounded-full bg-red-500 inactive-dot transition-all duration-500"></span>
+                <span id="status-text" class="text-sm font-medium text-gray-300">Disconnected</span>
+            </div>
+        </header>
+
+        <!-- Main Content Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- LEFT PANEL: Connection & Simulator Config (5 cols) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- 1. Connection Config Card -->
+                <div class="glass-panel rounded-2xl p-6 shadow-glass">
+                    <h2 class="text-lg font-semibold text-indigo-400 mb-4 flex items-center gap-2">
+                        🔌 Kết nối SignalR Hub
+                    </h2>
+                    
+                    <div class="flex flex-col gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Base URL</label>
+                            <input id="base-url" type="text" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 focus:shadow-glow transition-all" value="http://localhost:5000">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">JWT Bearer Token</label>
+                            <textarea id="jwt-token" rows="4" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 focus:shadow-glow transition-all font-mono" placeholder="Dán JWT Access Token lấy từ API Auth đăng nhập vào đây..."></textarea>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-2">
+                            <button id="btn-connect" onclick="connect()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-medium text-sm py-2.5 px-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/20">
+                                Kết nối
+                            </button>
+                            <button id="btn-disconnect" onclick="disconnect()" disabled class="flex-1 bg-gray-800 hover:bg-gray-700 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-white font-medium text-sm py-2.5 px-4 rounded-xl transition-all">
+                                Ngắt kết nối
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Test Message Trigger Card -->
+                <div class="glass-panel rounded-2xl p-6 shadow-glass">
+                    <h2 class="text-lg font-semibold text-indigo-400 mb-4 flex items-center gap-2">
+                        🚀 Giả Lập Gửi Thông Báo (Trigger)
+                    </h2>
+                    
+                    <div class="flex flex-col gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Target User ID (Guid)</label>
+                            <input id="target-userid" type="text" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:shadow-glow transition-all font-mono" placeholder="Nhập UserId của tài khoản đang online...">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Loại thông báo</label>
+                                <select id="msg-type" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:shadow-glow transition-all">
+                                    <option value="streak_alert">Streak Alert (Thứ hạng)</option>
+                                    <option value="daily_checkin">Daily Checkin (Điểm danh)</option>
+                                    <option value="group_activity">Group Activity (Nhóm)</option>
+                                    <option value="challenge_update">Challenge (Thử thách)</option>
+                                    <option value="promotion">Promotion (Khuyến mãi)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Tiêu đề</label>
+                                <input id="msg-title" type="text" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:shadow-glow transition-all" value="Sắp mất chuỗi Streak rồi!">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Nội dung thông báo</label>
+                            <textarea id="msg-body" rows="2" class="w-full bg-gray-950 border border-gray-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 focus:shadow-glow transition-all" placeholder="Nhập nội dung tin nhắn...">Đã 2 ngày bạn chưa check-in rồi đó, mở HealthPath lên tập ngay nào! 🔥</textarea>
+                        </div>
+                        
+                        <button id="btn-trigger" onclick="triggerNotification()" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/20 mt-2">
+                            Gửi Thử Nghiệm Qua Backend
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: Notification Logs (7 cols) -->
+            <div class="lg:col-span-7 flex flex-col">
+                <div class="glass-panel rounded-2xl p-6 shadow-glass flex-1 flex flex-col min-h-[500px] max-h-[670px]">
+                    
+                    <div class="flex items-center justify-between pb-4 border-b border-gray-800 mb-4">
+                        <h2 class="text-lg font-semibold text-indigo-400 flex items-center gap-2">
+                            📥 Logs Nhận Thông Báo (Thời gian thực)
+                        </h2>
+                        <button onclick="clearLogs()" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                            Xóa trắng
+                        </button>
+                    </div>
+                    
+                    <!-- Message Log Container -->
+                    <div id="log-container" class="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 text-sm text-gray-400">
+                        <div class="h-full flex flex-col items-center justify-center text-center text-gray-600 py-12">
+                            <svg class="w-16 h-16 opacity-30 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            <p class="font-medium text-sm">Chưa có kết nối nào hoặc chưa nhận được tin nhắn.</p>
+                            <p class="text-xs mt-1 text-gray-700">Sau khi Kết nối thành công, hãy bấm Gửi thử nghiệm để nhận tin real-time.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        let connection = null;
+        
+        // Parse JWT Token helper to extract UserId
+        function getUserIdFromToken(token) {
+            try {
+                if (!token) return '';
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                
+                const parsed = JSON.parse(jsonPayload);
+                // JWT thường lưu Id ở sub hoặc nameid
+                return parsed.sub || parsed.nameid || parsed["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || '';
+            } catch (e) {
+                console.error("Invalid JWT format", e);
+                return '';
+            }
+        }
+
+        // Lắng nghe thay đổi của ô token để tự lấy UserId điền vào ô Gửi test
+        document.getElementById('jwt-token').addEventListener('input', function(e) {
+            const token = e.target.value.trim();
+            const userId = getUserIdFromToken(token);
+            if (userId) {
+                document.getElementById('target-userid').value = userId;
+                showToast("🔍 Giải mã Token", `Tìm thấy UserId: ${userId}`, "info");
+            }
+        });
+
+        // 1. KẾT NỐI SIGNALR
+        async function connect() {
+            const baseUrl = document.getElementById('base-url').value.trim();
+            const token = document.getElementById('jwt-token').value.trim();
+
+            if (!token) {
+                showToast("❌ Lỗi kết nối", "Vui lòng nhập JWT Token để xác thực kết nối!", "error");
+                return;
+            }
+
+            const hubUrl = `${baseUrl}/hubs/notification`;
+            
+            // Cập nhật giao diện đang xử lý
+            document.getElementById('btn-connect').disabled = true;
+            document.getElementById('btn-connect').innerText = "Đang kết nối...";
+
+            try {
+                // Tạo đối tượng kết nối SignalR, truyền token qua query string
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`${hubUrl}?access_token=${token}`, {
+                        skipNegotiation: true,
+                        transport: signalR.HttpTransportType.WebSockets
+                    })
+                    .withAutomaticReconnect()
+                    .build();
+
+                // Lắng nghe sự kiện từ Server đẩy về
+                connection.on("ReceiveNotification", function (notification) {
+                    addLog(notification);
+                    showToast(`🔔 ${notification.title}`, notification.body, "notification");
+                    playNotificationSound();
+                });
+
+                // Lắng nghe sự kiện ngắt kết nối tự động
+                connection.onclose(error => {
+                    updateStatus(false);
+                    if (error) {
+                        showToast("❌ Kết nối bị ngắt", `Lỗi: ${error.message}`, "error");
+                    }
+                });
+
+                // Khởi chạy kết nối
+                await connection.start();
+                
+                updateStatus(true);
+                showToast("✅ Kết nối thành công", "Đã thiết lập kết nối thời gian thực với Server!", "success");
+
+                // Điền thử userId nếu có
+                const parsedUserId = getUserIdFromToken(token);
+                if (parsedUserId) {
+                    document.getElementById('target-userid').value = parsedUserId;
+                }
+
+            } catch (err) {
+                console.error(err);
+                updateStatus(false);
+                showToast("❌ Kết nối thất bại", err.toString(), "error");
+            } finally {
+                document.getElementById('btn-connect').disabled = false;
+                document.getElementById('btn-connect').innerText = "Kết nối";
+            }
+        }
+
+        // 2. NGẮT KẾT NỐI
+        async function disconnect() {
+            if (connection) {
+                await connection.stop();
+                connection = null;
+                updateStatus(false);
+                showToast("🔌 Đã ngắt kết nối", "Hủy kết nối SignalR thành công.", "info");
+            }
+        }
+
+        // Cập nhật badge trạng thái
+        function updateStatus(isConnected) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const btnConnect = document.getElementById('btn-connect');
+            const btnDisconnect = document.getElementById('btn-disconnect');
+
+            if (isConnected) {
+                dot.className = "w-3.5 h-3.5 rounded-full bg-emerald-500 active-dot transition-all duration-500";
+                text.innerText = "Connected";
+                text.className = "text-sm font-medium text-emerald-400";
+                btnConnect.disabled = true;
+                btnDisconnect.disabled = false;
+            } else {
+                dot.className = "w-3.5 h-3.5 rounded-full bg-red-500 inactive-dot transition-all duration-500";
+                text.innerText = "Disconnected";
+                text.className = "text-sm font-medium text-gray-300";
+                btnConnect.disabled = false;
+                btnDisconnect.disabled = true;
+            }
+        }
+
+        // 3. GIẢ LẬP GỬI THÔNG BÁO THỬ NGHIỆM
+        async function triggerNotification() {
+            const baseUrl = document.getElementById('base-url').value.trim();
+            const userId = document.getElementById('target-userid').value.trim();
+            const type = document.getElementById('msg-type').value;
+            const title = document.getElementById('msg-title').value.trim();
+            const body = document.getElementById('msg-body').value.trim();
+
+            if (!userId) {
+                showToast("⚠️ Nhập thiếu thông tin", "Vui lòng nhập Target User ID để gửi!", "error");
+                return;
+            }
+
+            const url = `${baseUrl}/api/Notification/send-test`;
+            const payload = {
+                userId: userId,
+                type: type,
+                title: title,
+                body: body,
+                data: JSON.stringify({ triggeredBy: "WebTestClient", timestamp: new Date().toISOString() })
+            };
+
+            document.getElementById('btn-trigger').disabled = true;
+            document.getElementById('btn-trigger').innerText = "Đang gửi...";
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showToast("🚀 Trigger Thành Công", "Lệnh gửi đã kích hoạt backend đẩy đi thành công!", "success");
+                } else {
+                    showToast("❌ Lỗi Trigger", result.message || "Gặp lỗi khi gọi API.", "error");
+                }
+            } catch (err) {
+                showToast("❌ Lỗi kết nối API", err.toString(), "error");
+            } finally {
+                document.getElementById('btn-trigger').disabled = false;
+                document.getElementById('btn-trigger').innerText = "Gửi Thử Nghiệm Qua Backend";
+            }
+        }
+
+        // 4. LOGS VIEW MANAGER
+        function addLog(notification) {
+            const container = document.getElementById('log-container');
+            
+            // Xóa log trống ban đầu nếu có
+            if (container.querySelector('svg')) {
+                container.innerHTML = '';
+            }
+
+            const now = new Date().toLocaleTimeString();
+            const colors = {
+                streak_alert: "border-amber-500 bg-amber-500/10 text-amber-300",
+                daily_checkin: "border-blue-500 bg-blue-500/10 text-blue-300",
+                group_activity: "border-purple-500 bg-purple-500/10 text-purple-300",
+                challenge_update: "border-emerald-500 bg-emerald-500/10 text-emerald-300",
+                promotion: "border-pink-500 bg-pink-500/10 text-pink-300"
+            };
+
+            const typeColor = colors[notification.type] || "border-gray-500 bg-gray-500/10 text-gray-300";
+
+            const logHtml = `
+                <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-4 flex flex-col gap-2 hover:border-gray-700 transition-all">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full border ${typeColor}">
+                            ${notification.type}
+                        </span>
+                        <span class="text-[10px] text-gray-500 font-mono">${now}</span>
+                    </div>
+                    <div class="font-semibold text-gray-100">${notification.title}</div>
+                    <div class="text-xs text-gray-400">${notification.body}</div>
+                    <div class="text-[10px] text-gray-600 bg-gray-950/80 p-2 rounded-lg font-mono overflow-x-auto">
+                        <strong>Payload Data:</strong> ${notification.data}
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('afterbegin', logHtml);
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center text-center text-gray-600 py-12">
+                    <svg class="w-16 h-16 opacity-30 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    <p class="font-medium text-sm">Logs đã được xóa sạch.</p>
+                </div>
+            `;
+            showToast("🗑️ Đã xóa sạch logs", "Lịch sử nhận tin nhắn đã được làm mới.", "info");
+        }
+
+        // 5. TOAST NOTIFICATION ENGINE
+        function showToast(title, body, type = "success") {
+            const container = document.getElementById('toast-container');
+            
+            const bgTypes = {
+                success: "bg-emerald-950 border-emerald-800 text-emerald-200",
+                error: "bg-red-950 border-red-800 text-red-200",
+                info: "bg-blue-950 border-blue-800 text-blue-200",
+                notification: "bg-indigo-950 border-indigo-800 text-indigo-200"
+            };
+
+            const bgClass = bgTypes[type] || bgTypes.success;
+            
+            const toastId = 'toast-' + Math.random().toString(36).substr(2, 9);
+            const toastHtml = `
+                <div id="${toastId}" class="pointer-events-auto flex flex-col p-4 rounded-xl border ${bgClass} shadow-glass transform translate-x-full transition-all duration-300 opacity-0">
+                    <div class="font-semibold text-sm flex items-center justify-between">
+                        <span>${title}</span>
+                        <button onclick="removeToast('${toastId}')" class="text-xs opacity-50 hover:opacity-100 ml-3">&times;</button>
+                    </div>
+                    <p class="text-xs mt-1 opacity-80">${body}</p>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', toastHtml);
+            
+            // Trigger animation
+            const toast = document.getElementById(toastId);
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, 50);
+
+            // Tự động tắt sau 5s
+            setTimeout(() => {
+                removeToast(toastId);
+            }, 5000);
+        }
+
+        function removeToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }
+        }
+
+        // 6. AUDIO EFFECTS
+        function playNotificationSound() {
+            try {
+                // Tạo tiếng bíp nhẹ thanh bằng API âm thanh của trình duyệt (Web Audio API)
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Tiếng bíp 1 (cao độ 523Hz - C5)
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.value = 587.33; // D5
+                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                
+                osc.start(audioCtx.currentTime);
+                // Tiếng bíp 2 (cao độ 880Hz - A5) nhanh hơn
+                setTimeout(() => {
+                    osc.frequency.value = 880;
+                }, 100);
+
+                osc.stop(audioCtx.currentTime + 0.25);
+            } catch (e) {
+                console.log("Audio API not supported or blocked by browser user gesture policy.");
+            }
+        }
+    </script>
+</body>
+</html>

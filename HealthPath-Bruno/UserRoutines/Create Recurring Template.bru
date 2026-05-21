@@ -1,0 +1,23 @@
+meta {
+  name: Create Recurring Template
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/UserRoutine/recurring
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "routineId": "8a873d0b-b4c8-4198-87d2-c65a00a764cf",
+    "daysOfWeek": [1, 3, 5],
+    "scheduledTime": "07:30:00"
+  }
+}

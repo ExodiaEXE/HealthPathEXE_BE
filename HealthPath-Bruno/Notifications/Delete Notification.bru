@@ -1,0 +1,15 @@
+meta {
+  name: Delete Notification
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/Notification/3fa85f64-5717-4562-b3fc-2c963f66afa6
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

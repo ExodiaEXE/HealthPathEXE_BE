@@ -324,6 +324,61 @@ namespace HealthPath.API.Migrations
                     b.ToTable("chat_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("HealthPath.API.Models.DeviceToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("device_name");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("device_tokens_pkey");
+
+                    b.HasIndex(new[] { "UserId", "Token" }, "device_tokens_user_id_token_key")
+                        .IsUnique();
+
+                    b.ToTable("device_tokens", (string)null);
+                });
+
             modelBuilder.Entity("HealthPath.API.Models.Group", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1272,12 +1327,6 @@ namespace HealthPath.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("scheduled_at");
 
-                    b.Property<int>("ScoreEarned")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("score_earned");
-
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
@@ -1322,10 +1371,6 @@ namespace HealthPath.API.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("AiInsights")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("ai_insights");
-
                     b.Property<int>("StreakBest")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -1341,12 +1386,6 @@ namespace HealthPath.API.Migrations
                     b.Property<DateOnly?>("StreakUpdatedDate")
                         .HasColumnType("date")
                         .HasColumnName("streak_updated_date");
-
-                    b.Property<long>("TotalScore")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasDefaultValue(0L)
-                        .HasColumnName("total_score");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -1516,6 +1555,18 @@ namespace HealthPath.API.Migrations
                         .HasConstraintName("chat_sessions_user_id_fkey");
 
                     b.Navigation("Companion");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.DeviceToken", b =>
+                {
+                    b.HasOne("HealthPath.API.Models.User", "User")
+                        .WithMany("DeviceTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("device_tokens_user_id_fkey");
 
                     b.Navigation("User");
                 });
@@ -1813,6 +1864,8 @@ namespace HealthPath.API.Migrations
                     b.Navigation("ChallengeParticipants");
 
                     b.Navigation("ChatSessions");
+
+                    b.Navigation("DeviceTokens");
 
                     b.Navigation("GroupMembers");
 
