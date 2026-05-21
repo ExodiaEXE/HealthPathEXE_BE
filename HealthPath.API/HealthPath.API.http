@@ -1,6 +1,7 @@
 @HostAddress = https://localhost:7232
+@Token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTI3MzYzNy0wYWEzLTQ4NjktODE4My0xNDExOTU1YjAxOWYiLCJlbWFpbCI6ImRhbmdhbmhkdWM4NDhAZ21haWwuY29tIiwiRnVsbE5hbWUiOiJkYW5nZGFvYW5oZHVjIiwibmJmIjoxNzc5MjA1NzUxLCJleHAiOjE3Nzk4MTA1NTEsImlhdCI6MTc3OTIwNTc1MX0.KOJbi8myXkRxVzgr8jzVR28Te1mco23uJaySqSXUgZM
 
-### 1. Đăng nhập để lấy Token
+### 1. Đăng nhập để lấy Token (Không cần bấm chạy lại nếu Token ở trên chưa hết hạn)
 POST {{HostAddress}}/api/Auth/login
 Content-Type: application/json
 
@@ -9,6 +10,30 @@ Content-Type: application/json
   "password": "12345"
 }
 
-### 2. Lấy Profile (Copy cái Token ở bước 1 dán đè lên chữ dán_token_vào_đây)
-GET {{HostAddress}}/api/Users/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTI3MzYzNy0wYWEzLTQ4NjktODE4My0xNDExOTU1YjAxOWYiLCJlbWFpbCI6ImRhbmdhbmhkdWM4NDhAZ21haWwuY29tIiwiRnVsbE5hbWUiOiJkYW5nZGFvYW5oZHVjIiwibmJmIjoxNzc5MjA1NzUxLCJleHAiOjE3Nzk4MTA1NTEsImlhdCI6MTc3OTIwNTc1MX0.KOJbi8myXkRxVzgr8jzVR28Te1mco23uJaySqSXUgZM
+### 2. Tạo 1 Routine mới (Đã đính kèm Token)
+POST {{HostAddress}}/api/Routine
+Authorization: Bearer {{Token}}
+Content-Type: application/json
+
+{
+  "title": "Tập thể dục buổi sáng",
+  "description": "Bài tập 15 phút.",
+  "category": "Fitness",
+  "difficulty": "Beginner",
+  "durationMinutes": 15,
+  "isPremium": false,
+  "thumbnailUrl": "image.jpg"
+}
+
+### 3. Đăng ký Routine vào lịch của tôi (THAY ID VÀO ĐÂY SAU KHI TẠO ROUTINE THÀNH CÔNG)
+POST {{HostAddress}}/api/UserRoutine/schedule
+Authorization: Bearer {{Token}}
+Content-Type: application/json
+
+{
+  "routineId": "dán_ID_vào_đây"
+}
+
+### 4. Xem lịch trình Routine của tôi
+GET {{HostAddress}}/api/UserRoutine/my-schedule
+Authorization: Bearer {{Token}}

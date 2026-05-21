@@ -1,9 +1,10 @@
+using HealthPath.API.Middlewares;
 using HealthPath.API.Models;
 using HealthPath.API.Services;
-using HealthPath.API.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,7 +48,23 @@ builder.Services.AddAuthentication(options =>
 });
 
 // <-- CODE BẠN THÊM: Cấu hình Swagger có ổ khóa JWT (Mở rộng từ AddSwaggerGen cũ của ông)
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Nhập token vào ô bên dưới. Nhớ có chữ 'Bearer ' ở đằng trước nhé. Ví dụ: Bearer eyJhbGci...",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    // Cách cấu hình ổ khóa mới tinh dành riêng cho .NET 10
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+});
 
 
 var app = builder.Build();
