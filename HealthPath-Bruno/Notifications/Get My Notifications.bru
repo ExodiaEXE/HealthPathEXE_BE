@@ -1,0 +1,21 @@
+meta {
+  name: Get My Notifications
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/Notification?unreadOnly=false&page=1&pageSize=10
+  body: none
+  auth: none
+}
+
+params:query {
+  unreadOnly: false
+  page: 1
+  pageSize: 10
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

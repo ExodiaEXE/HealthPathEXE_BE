@@ -1,0 +1,30 @@
+meta {
+  name: Update Settings
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/Notification/settings
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "dailyCheckin": true,
+    "streakReminder": true,
+    "groupActivity": false,
+    "challengeUpdates": true,
+    "promotions": false,
+    "pushEnabled": true,
+    "emailEnabled": false,
+    "inAppEnabled": true,
+    "quietFrom": "22:00:00",
+    "quietUntil": "07:00:00"
+  }
+}

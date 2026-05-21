@@ -1,0 +1,19 @@
+meta {
+  name: Delete File
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/File?fileUrlOrKey=uploads/avatars/3fa85f64-5717-4562-b3fc-2c963f66afa6/avatar.png
+  body: none
+  auth: none
+}
+
+params:query {
+  fileUrlOrKey: uploads/avatars/3fa85f64-5717-4562-b3fc-2c963f66afa6/avatar.png
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

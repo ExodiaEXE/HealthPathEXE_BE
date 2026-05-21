@@ -1,0 +1,19 @@
+meta {
+  name: Upload Audio Cover
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/File/audio/cover
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:multipart-form {
+  file: @file()
+}

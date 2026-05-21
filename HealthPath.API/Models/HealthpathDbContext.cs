@@ -61,6 +61,8 @@ public partial class HealthpathDbContext : DbContext
 
     public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; }
 
+    public virtual DbSet<DeviceToken> DeviceTokens { get; set; }
+
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         //=> optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
 
@@ -910,6 +912,39 @@ public partial class HealthpathDbContext : DbContext
             entity.HasOne(d => d.Routine).WithMany()
                 .HasForeignKey(d => d.RoutineId)
                 .HasConstraintName("recurring_templates_routine_id_fkey");
+        });
+
+        modelBuilder.Entity<DeviceToken>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("device_tokens_pkey");
+            entity.ToTable("device_tokens");
+
+            entity.HasIndex(e => new { e.UserId, e.Token }, "device_tokens_user_id_token_key").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Token).HasColumnName("token");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(20)
+                .HasColumnName("platform");
+            entity.Property(e => e.DeviceName)
+                .HasMaxLength(100)
+                .HasColumnName("device_name");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.User).WithMany(p => p.DeviceTokens)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("device_tokens_user_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);
