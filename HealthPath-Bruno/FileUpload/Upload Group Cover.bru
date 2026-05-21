@@ -1,0 +1,19 @@
+meta {
+  name: Upload Group Cover
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/File/group/3fa85f64-5717-4562-b3fc-2c963f66afa6/cover
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:multipart-form {
+  file: @file()
+}

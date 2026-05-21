@@ -1,0 +1,23 @@
+meta {
+  name: Register Device Token
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/Notification/device-token
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "token": "fcm_token_sample_123456",
+    "platform": "android",
+    "deviceName": "Samsung Galaxy S22"
+  }
+}

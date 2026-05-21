@@ -1,0 +1,19 @@
+meta {
+  name: Upload Audio Track
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/File/audio/track
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:multipart-form {
+  file: @file()
+}

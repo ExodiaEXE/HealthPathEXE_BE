@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HealthPath.API.Models;
@@ -56,4 +56,6 @@ public partial class User
     public virtual ICollection<UserRoutine> UserRoutines { get; set; } = new List<UserRoutine>();
 
     public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
+
+    public virtual ICollection<DeviceToken> DeviceTokens { get; set; } = new List<DeviceToken>();
 }
