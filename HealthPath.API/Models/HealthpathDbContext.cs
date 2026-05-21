@@ -15,56 +15,34 @@ public partial class HealthpathDbContext : DbContext
     {
     }
 
-    public virtual DbSet<AiCompanion> AiCompanions { get; set; }
 
-    public virtual DbSet<AudioTrack> AudioTracks { get; set; }
-
-    public virtual DbSet<ChallengeParticipant> ChallengeParticipants { get; set; }
-
-    public virtual DbSet<ChatMessage> ChatMessages { get; set; }
-
-    public virtual DbSet<ChatSession> ChatSessions { get; set; }
-
-    public virtual DbSet<Group> Groups { get; set; }
-
-    public virtual DbSet<GroupChallenge> GroupChallenges { get; set; }
-
-    public virtual DbSet<GroupMember> GroupMembers { get; set; }
-
-    public virtual DbSet<MoodCheckin> MoodCheckins { get; set; }
-
-    public virtual DbSet<Notification> Notifications { get; set; }
-
-    public virtual DbSet<NotificationSetting> NotificationSettings { get; set; }
-
-    public virtual DbSet<Permission> Permissions { get; set; }
-
-    public virtual DbSet<Role> Roles { get; set; }
-
-    public virtual DbSet<RolePermission> RolePermissions { get; set; }
-
-    public virtual DbSet<Routine> Routines { get; set; }
-
-    public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
-
-    public virtual DbSet<User> Users { get; set; }
-
-    public virtual DbSet<UserAudioHistory> UserAudioHistories { get; set; }
-
-    public virtual DbSet<UserRole> UserRoles { get; set; }
-
-    public virtual DbSet<UserRoutine> UserRoutines { get; set; }
-
-    public virtual DbSet<UserSubscription> UserSubscriptions { get; set; }
-
-    public virtual DbSet<UserStats> UserStats { get; set; }
-
-    public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; }
-
-    public virtual DbSet<DeviceToken> DeviceTokens { get; set; }
+    public virtual DbSet<AiCompanion> AiCompanions { get; set; } = null!;
+    public virtual DbSet<AudioTrack> AudioTracks { get; set; } = null!;
+    public virtual DbSet<ChallengeParticipant> ChallengeParticipants { get; set; } = null!;
+    public virtual DbSet<ChatMessage> ChatMessages { get; set; } = null!;
+    public virtual DbSet<ChatSession> ChatSessions { get; set; } = null!;
+    public virtual DbSet<Group> Groups { get; set; } = null!;
+    public virtual DbSet<GroupChallenge> GroupChallenges { get; set; } = null!;
+    public virtual DbSet<GroupMember> GroupMembers { get; set; } = null!;
+    public virtual DbSet<MoodCheckin> MoodCheckins { get; set; } = null!;
+    public virtual DbSet<Notification> Notifications { get; set; } = null!;
+    public virtual DbSet<NotificationSetting> NotificationSettings { get; set; } = null!;
+    public virtual DbSet<Permission> Permissions { get; set; } = null!;
+    public virtual DbSet<Role> Roles { get; set; } = null!;
+    public virtual DbSet<RolePermission> RolePermissions { get; set; } = null!;
+    public virtual DbSet<Routine> Routines { get; set; } = null!;
+    public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; } = null!;
+    public virtual DbSet<User> Users { get; set; } = null!;
+    public virtual DbSet<UserAudioHistory> UserAudioHistories { get; set; } = null!;
+    public virtual DbSet<UserRole> UserRoles { get; set; } = null!;
+    public virtual DbSet<UserRoutine> UserRoutines { get; set; } = null!;
+    public virtual DbSet<UserSubscription> UserSubscriptions { get; set; } = null!;
+    public virtual DbSet<UserStats> UserStats { get; set; } = null!;
+    public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; } = null!;
+    public virtual DbSet<DeviceToken> DeviceTokens { get; set; } = null!;
 
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        //=> optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
+    //    => optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -861,7 +839,7 @@ public partial class HealthpathDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("user_stats_pkey");
             entity.ToTable("user_stats");
-            
+
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
                 .HasColumnName("id");

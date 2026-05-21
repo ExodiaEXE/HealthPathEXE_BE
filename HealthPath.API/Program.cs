@@ -25,6 +25,7 @@ builder.Services.AddScoped<IUserRoutineService, UserRoutineService>();
 builder.Services.AddScoped<IGamificationService, GamificationService>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRecurringRoutineJob, HealthPath.API.BackgroundJobs.RecurringRoutineJob>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IMissDetectionJob, HealthPath.API.BackgroundJobs.MissDetectionJob>();
+builder.Services.AddScoped<IMoodCheckinService, MoodCheckinService>();
 
 // 5. Đăng ký các dịch vụ bổ sung qua Extension Methods (Notification, File Storage, Hangfire)
 builder.Services.AddNotificationServices();
@@ -55,17 +56,28 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = false
     };
 
-    // Hỗ trợ nhận Token từ Query String của SignalR WebSocket
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
+            // SignalR: token qua query ?access_token=...
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
                 context.Token = accessToken;
+                return Task.CompletedTask;
             }
+
+            // Swagger hay dán thiếu chữ "Bearer " -> tự lấy token cho dễ test
+            var authHeader = context.Request.Headers.Authorization.ToString();
+            if (!string.IsNullOrWhiteSpace(authHeader))
+            {
+                context.Token = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                    ? authHeader["Bearer ".Length..].Trim()
+                    : authHeader.Trim();
+            }
+
             return Task.CompletedTask;
         }
     };
@@ -76,11 +88,12 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Nhập token vào ô bên dưới. Nhớ có chữ 'Bearer ' ở đằng trước nhé. Ví dụ: Bearer eyJhbGci...",
+        Description = "1) Gọi POST /api/Auth/login để lấy token. 2) Bấm Authorize, chỉ dán phần token (không cần gõ chữ Bearer).",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     // Cách cấu hình ổ khóa mới tinh dành riêng cho .NET 10
