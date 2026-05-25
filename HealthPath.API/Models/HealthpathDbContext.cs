@@ -41,9 +41,8 @@ public partial class HealthpathDbContext : DbContext
     public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; } = null!;
     public virtual DbSet<DeviceToken> DeviceTokens { get; set; } = null!;
 
-    public virtual DbSet<AudioCategory> AudioCategories { get; set; }
-
-    public virtual DbSet<UserFavoriteTrack> UserFavoriteTracks { get; set; }
+    public virtual DbSet<AudioCategory> AudioCategories { get; set; } = null!;
+    public virtual DbSet<UserFavoriteTrack> UserFavoriteTracks { get; set; } = null!;
 
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //    => optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
