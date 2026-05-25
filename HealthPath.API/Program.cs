@@ -7,6 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
 using HealthPath.API.Extensions;
+using dotenv.net;
+
+// Load environment variables from .env if present
+DotEnv.Fluent()
+    .WithProbeForEnv(probeLevelsToSearch: 6)
+    .Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +37,7 @@ builder.Services.AddScoped<IMoodCheckinService, MoodCheckinService>();
 builder.Services.AddNotificationServices();
 builder.Services.AddFileStorageServices(builder.Configuration);
 builder.Services.AddHangfireServices(builder.Configuration);
+builder.Services.AddAudioServices();
 
 // 3. Mở CORS cho Front-end (Web/Mobile) gọi API không bị chặn
 builder.Services.AddCors(options =>

@@ -1,0 +1,15 @@
+meta {
+  name: Get Categories (Admin)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/AudioTrack/categories/all
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

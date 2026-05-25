@@ -1,0 +1,28 @@
+meta {
+  name: Create Track (Admin)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/AudioTrack
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "title": "Morning Meditation Calm",
+    "artist": "Zen Harmony Studio",
+    "studio": "Eco Peace Records",
+    "categoryId": "c9a622a5-4bc4-47a2-9db8-5a41e6c38210",
+    "durationSeconds": 600,
+    "fileUrl": "audio/tracks/beefb600-7a4b-4348-ae31-f2bfd195dd66.mp3",
+    "coverUrl": "https://pub-r2.com/covers/morning_cover.webp",
+    "isPremium": false
+  }
+}

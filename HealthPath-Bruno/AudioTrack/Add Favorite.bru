@@ -1,0 +1,19 @@
+meta {
+  name: Add Favorite
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/AudioTrack/:id/favorite
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 22a84a62-9e8c-4bc4-9d5a-1b4e94119d85
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
