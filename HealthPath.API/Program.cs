@@ -50,6 +50,7 @@ builder.Services.AddScoped<IGamificationService, GamificationService>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRecurringRoutineJob, HealthPath.API.BackgroundJobs.RecurringRoutineJob>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IMissDetectionJob, HealthPath.API.BackgroundJobs.MissDetectionJob>();
 builder.Services.AddScoped<IMoodCheckinService, MoodCheckinService>();
+builder.Services.AddScoped<IGroupChallengeService, GroupChallengeService>();
 
 // 5. Đăng ký các dịch vụ bổ sung qua Extension Methods (Notification, File Storage, Hangfire)
 builder.Services.AddNotificationServices();
@@ -145,7 +146,8 @@ var app = builder.Build();
 // Đăng ký Middleware xử lý lỗi tập trung đầu tiên trong pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Khởi tạo Admin mặc định từ biến môi trường
+// Áp dụng EF migrations (baseline DB scaffold cũ nếu cần), rồi seed admin
+await app.ApplyMigrationsAsync();
 await app.SeedDefaultAdminAsync();
 
 // Configure the HTTP request pipeline.
