@@ -41,6 +41,10 @@ public partial class HealthpathDbContext : DbContext
     public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; } = null!;
     public virtual DbSet<DeviceToken> DeviceTokens { get; set; } = null!;
 
+    public virtual DbSet<AudioCategory> AudioCategories { get; set; }
+
+    public virtual DbSet<UserFavoriteTrack> UserFavoriteTracks { get; set; }
+
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //    => optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
 
@@ -84,7 +88,7 @@ public partial class HealthpathDbContext : DbContext
 
             entity.ToTable("audio_tracks");
 
-            entity.HasIndex(e => e.Category, "idx_audio_category").HasFilter("(deleted_at IS NULL)");
+            entity.HasIndex(e => e.CategoryId, "idx_audio_category").HasFilter("(deleted_at IS NULL)");
 
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
@@ -92,9 +96,8 @@ public partial class HealthpathDbContext : DbContext
             entity.Property(e => e.Artist)
                 .HasMaxLength(150)
                 .HasColumnName("artist");
-            entity.Property(e => e.Category)
-                .HasMaxLength(50)
-                .HasColumnName("category");
+            entity.Property(e => e.CategoryId)
+                .HasColumnName("category_id");
             entity.Property(e => e.CoverUrl).HasColumnName("cover_url");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
@@ -117,6 +120,11 @@ public partial class HealthpathDbContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
             entity.Property(e => e.UploadedBy).HasColumnName("uploaded_by");
+
+            entity.HasOne(d => d.Category).WithMany(p => p.AudioTracks)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("audio_tracks_category_id_fkey");
 
             entity.HasOne(d => d.UploadedByNavigation).WithMany(p => p.AudioTracks)
                 .HasForeignKey(d => d.UploadedBy)
@@ -923,6 +931,64 @@ public partial class HealthpathDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.DeviceTokens)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("device_tokens_user_id_fkey");
+        });
+
+        modelBuilder.Entity<AudioCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("audio_categories_pkey");
+
+            entity.ToTable("audio_categories");
+
+            entity.HasIndex(e => e.Name, "idx_audio_category_name_unique").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.Name)
+                .HasMaxLength(50)
+                .HasColumnName("name");
+            entity.Property(e => e.Description)
+                .HasMaxLength(500)
+                .HasColumnName("description");
+            entity.Property(e => e.IconUrl)
+                .HasColumnName("icon_url");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.SortOrder)
+                .HasDefaultValue(0)
+                .HasColumnName("sort_order");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+        });
+
+        modelBuilder.Entity<UserFavoriteTrack>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("user_favorite_tracks_pkey");
+
+            entity.ToTable("user_favorite_tracks");
+
+            entity.HasIndex(e => new { e.UserId, e.TrackId }, "idx_user_favorite_track_unique").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.TrackId).HasColumnName("track_id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+
+            entity.HasOne(d => d.User).WithMany(p => p.FavoriteTracks)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("user_favorite_tracks_user_id_fkey");
+
+            entity.HasOne(d => d.Track).WithMany(p => p.FavoritedByUsers)
+                .HasForeignKey(d => d.TrackId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("user_favorite_tracks_track_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

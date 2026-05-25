@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HealthPath.API.Models;
@@ -13,7 +13,7 @@ public partial class AudioTrack
 
     public string? Studio { get; set; }
 
-    public string Category { get; set; } = null!;
+    public Guid CategoryId { get; set; }
 
     public int DurationSeconds { get; set; }
 
@@ -35,7 +35,11 @@ public partial class AudioTrack
 
     public DateTime UpdatedAt { get; set; }
 
+    public virtual AudioCategory Category { get; set; } = null!;
+
     public virtual User? UploadedByNavigation { get; set; }
 
     public virtual ICollection<UserAudioHistory> UserAudioHistories { get; set; } = new List<UserAudioHistory>();
+
+    public virtual ICollection<UserFavoriteTrack> FavoritedByUsers { get; set; } = new List<UserFavoriteTrack>();
 }

@@ -189,4 +189,39 @@ public class CloudflareR2Service : IFileStorageService
             throw;
         }
     }
+
+    public Task<string> GeneratePresignedDownloadUrlAsync(string fileKey, int expiresInMinutes = 60)
+    {
+        if (_isLocalFallback)
+        {
+            // Trả về URL cục bộ để phát nhạc offline khi chạy local fallback
+            var cleanKey = fileKey.TrimStart('/');
+            if (cleanKey.StartsWith("uploads/"))
+            {
+                return Task.FromResult($"/{cleanKey}");
+            }
+            return Task.FromResult($"/uploads/{cleanKey}");
+        }
+
+        try
+        {
+            using var client = CreateS3Client();
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = _options.BucketName,
+                Key = fileKey,
+                Verb = HttpVerb.GET,
+                Expires = DateTime.UtcNow.AddMinutes(expiresInMinutes)
+            };
+
+            var url = client.GetPreSignedURL(request);
+            _logger.LogInformation("Generated pre-signed download URL for key: {Key}", fileKey);
+            return Task.FromResult(url);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate pre-signed download URL for key: {Key}", fileKey);
+            throw;
+        }
+    }
 }

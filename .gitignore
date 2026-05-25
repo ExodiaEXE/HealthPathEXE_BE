@@ -365,3 +365,6 @@ FodyWeavers.xsd
 # Bruno local files (personal settings, environments, and local overrides)
 .bru/
 *.bru.local
+
+# Local Environment Variables
+.env

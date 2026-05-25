@@ -1,0 +1,24 @@
+meta {
+  name: Create Category (Admin)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/AudioTrack/categories
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "name": "Binaural Beats",
+    "description": "Brainwave relaxation and focus",
+    "iconUrl": "https://pub-r2.com/icons/brain.png",
+    "sortOrder": 7
+  }
+}

@@ -58,7 +58,7 @@ public class PushChannel : INotificationChannel
                 }
             };
 
-            var response = await FirebaseMessaging.DefaultInstance.SendMulticastAsync(message);
+            var response = await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(message);
             _logger.LogInformation("Successfully sent {SuccessCount} push notifications. Failed: {FailureCount}", 
                 response.SuccessCount, response.FailureCount);
         }

@@ -1,0 +1,19 @@
+meta {
+  name: Get Stream URL
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/AudioTrack/:id/stream-url
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 22a84a62-9e8c-4bc4-9d5a-1b4e94119d85
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
