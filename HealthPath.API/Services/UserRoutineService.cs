@@ -249,7 +249,7 @@ public class UserRoutineService : IUserRoutineService
 
         await _context.SaveChangesAsync();
 
-        return ApiResponse<object>.Ok(null, "Recurring template deleted successfully");
+        return ApiResponse<object>.Ok(new object(), "Recurring template deleted successfully");
     }
 
     private static UserRoutineDto MapToDto(UserRoutine entity)

@@ -1,0 +1,25 @@
+meta {
+  name: Assign Permissions
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/admin/roles/assign-permissions
+  auth: none
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "roleId": "{{roleId}}",
+    "permissionNames": [
+      "ManageAudio",
+      "ViewDashboard"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Update Track (Admin)
+  type: http
+  seq: 21
+}
+
+put {
+  url: {{baseUrl}}/api/AudioTrack/{{trackId}}
+  auth: none
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated",
+    "artist": "Artist",
+    "categoryId": "00000000-0000-0000-0000-000000000000",
+    "durationSeconds": 100,
+    "isPremium": false
+  }
+}

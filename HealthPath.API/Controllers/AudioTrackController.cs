@@ -127,10 +127,6 @@ namespace HealthPath.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateTrack([FromBody] CreateAudioTrackDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu đầu vào không hợp lệ", ErrorCode.VALIDATION_ERROR));
-            }
 
             var adminUserId = User.GetUserId();
             var response = await _audioTrackService.CreateTrackAsync(dto, adminUserId);
@@ -147,10 +143,6 @@ namespace HealthPath.API.Controllers
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> UpdateTrack(Guid id, [FromBody] UpdateAudioTrackDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu đầu vào không hợp lệ", ErrorCode.VALIDATION_ERROR));
-            }
 
             var adminUserId = User.GetUserId();
             var response = await _audioTrackService.UpdateTrackAsync(id, dto, adminUserId);
@@ -178,10 +170,6 @@ namespace HealthPath.API.Controllers
         [HttpPost("categories")]
         public async Task<IActionResult> CreateCategory([FromBody] CreateAudioCategoryDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu đầu vào không hợp lệ", ErrorCode.VALIDATION_ERROR));
-            }
 
             var adminUserId = User.GetUserId();
             var response = await _audioTrackService.CreateCategoryAsync(dto, adminUserId);
@@ -194,10 +182,6 @@ namespace HealthPath.API.Controllers
         [HttpPut("categories/{id:guid}")]
         public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] UpdateAudioCategoryDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu đầu vào không hợp lệ", ErrorCode.VALIDATION_ERROR));
-            }
 
             var adminUserId = User.GetUserId();
             var response = await _audioTrackService.UpdateCategoryAsync(id, dto, adminUserId);
@@ -225,10 +209,6 @@ namespace HealthPath.API.Controllers
         [HttpPost("play")]
         public async Task<IActionResult> RecordPlay([FromBody] RecordPlayDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu đầu vào không hợp lệ", ErrorCode.VALIDATION_ERROR));
-            }
 
             var userId = User.GetUserId();
             var response = await _audioTrackService.RecordPlayAsync(dto, userId);

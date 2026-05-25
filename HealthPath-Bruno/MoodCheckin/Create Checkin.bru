@@ -1,0 +1,22 @@
+meta {
+  name: Create Checkin
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/MoodCheckin
+  auth: none
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "moodScore": 8,
+    "note": "Feeling great!"
+  }
+}

@@ -28,7 +28,14 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
+            if (ex is BadHttpRequestException)
+            {
+                _logger.LogWarning("A bad request exception occurred: {Message}", ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
+            }
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -49,6 +56,12 @@ public class ExceptionHandlingMiddleware
                 message = apiException.Message;
                 errorCode = apiException.ErrorCode;
                 errors = apiException.Errors;
+                break;
+
+            case BadHttpRequestException badRequestEx:
+                statusCode = (HttpStatusCode)badRequestEx.StatusCode;
+                message = badRequestEx.Message;
+                errorCode = ErrorCode.VALIDATION_ERROR;
                 break;
 
             case UnauthorizedAccessException unauthorizedEx:

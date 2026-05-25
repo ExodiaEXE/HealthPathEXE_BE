@@ -1,0 +1,14 @@
+meta {
+  name: Get Favorites
+  type: http
+  seq: 24
+}
+
+get {
+  url: {{baseUrl}}/api/AudioTrack/favorites
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

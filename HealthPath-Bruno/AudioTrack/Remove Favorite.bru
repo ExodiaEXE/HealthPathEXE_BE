@@ -1,0 +1,14 @@
+meta {
+  name: Remove Favorite
+  type: http
+  seq: 23
+}
+
+delete {
+  url: {{baseUrl}}/api/AudioTrack/{{trackId}}/favorite
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

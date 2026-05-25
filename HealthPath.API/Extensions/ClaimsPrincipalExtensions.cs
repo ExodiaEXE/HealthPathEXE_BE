@@ -16,5 +16,20 @@ namespace HealthPath.API.Extensions
 
             return Guid.Parse(value);
         }
+
+        public static string? GetRole(this ClaimsPrincipal user)
+        {
+            return user.FindFirst("Role")?.Value;
+        }
+
+        public static bool IsSuperAdmin(this ClaimsPrincipal user)
+        {
+            return GetRole(user) == "SuperAdmin";
+        }
+
+        public static bool IsAdminToken(this ClaimsPrincipal user)
+        {
+            return user.FindFirst("IsAdmin")?.Value == "true";
+        }
     }
 }

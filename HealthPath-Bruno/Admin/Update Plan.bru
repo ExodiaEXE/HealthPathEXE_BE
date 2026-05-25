@@ -1,0 +1,30 @@
+meta {
+  name: Update Plan
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/api/admin/subscriptions/plans/{{planId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "name": "Gói Pro 1 Tháng (Update)",
+    "code": "PRO_1M",
+    "description": "Gói chuyên nghiệp sử dụng trong 1 tháng đã cập nhật",
+    "priceMonthly": 109000,
+    "priceYearly": 0,
+    "currency": "VND",
+    "features": "[\"Tất cả bài tập\", \"Theo dõi tiến độ\", \"Không quảng cáo\", \"Hỗ trợ 24/7\"]",
+    "isActive": true,
+    "appleProductId": "com.healthpath.pro.1m.new",
+    "googleProductId": "healthpath_pro_1m_new"
+  }
+}
