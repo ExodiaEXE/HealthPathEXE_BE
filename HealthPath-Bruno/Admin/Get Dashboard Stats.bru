@@ -1,0 +1,15 @@
+meta {
+  name: Get Dashboard Stats
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/admin/dashboard/stats
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

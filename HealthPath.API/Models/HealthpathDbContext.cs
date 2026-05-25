@@ -45,6 +45,10 @@ public partial class HealthpathDbContext : DbContext
 
     public virtual DbSet<UserFavoriteTrack> UserFavoriteTracks { get; set; }
 
+    public virtual DbSet<Transaction> Transactions { get; set; }
+
+    public virtual DbSet<Admin> Admins { get; set; } = null!;
+
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //    => optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
 
@@ -623,6 +627,12 @@ public partial class HealthpathDbContext : DbContext
             entity.Property(e => e.IsActive)
                 .HasDefaultValue(true)
                 .HasColumnName("is_active");
+            entity.Property(e => e.AppleProductId)
+                .HasMaxLength(100)
+                .HasColumnName("apple_product_id");
+            entity.Property(e => e.GoogleProductId)
+                .HasMaxLength(100)
+                .HasColumnName("google_product_id");
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .HasColumnName("name");
@@ -989,6 +999,125 @@ public partial class HealthpathDbContext : DbContext
                 .HasForeignKey(d => d.TrackId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("user_favorite_tracks_track_id_fkey");
+        });
+
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("transactions_pkey");
+
+            entity.ToTable("transactions");
+
+            entity.HasIndex(e => e.PlatformTransactionId, "transactions_platform_trans_id_key").IsUnique();
+            entity.HasIndex(e => e.UserId, "idx_transactions_user");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.PlanId).HasColumnName("plan_id");
+
+            entity.Property(e => e.Platform)
+                .HasMaxLength(20)
+                .HasColumnName("platform");
+
+            entity.Property(e => e.PlatformTransactionId)
+                .HasMaxLength(255)
+                .HasColumnName("platform_transaction_id");
+
+            entity.Property(e => e.OriginalTransactionId)
+                .HasMaxLength(255)
+                .HasColumnName("original_transaction_id");
+
+            entity.Property(e => e.PurchaseToken)
+                .HasColumnName("purchase_token");
+
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasColumnName("status");
+
+            entity.Property(e => e.Amount)
+                .HasPrecision(12, 2)
+                .HasColumnName("amount");
+
+            entity.Property(e => e.Currency)
+                .HasMaxLength(3)
+                .HasDefaultValueSql("'VND'::bpchar")
+                .IsFixedLength()
+                .HasColumnName("currency");
+
+            entity.Property(e => e.PurchasedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("purchased_at");
+
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Plan).WithMany()
+                .HasForeignKey(d => d.PlanId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("transactions_plan_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("transactions_user_id_fkey");
+        });
+
+        modelBuilder.Entity<Admin>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("admins_pkey");
+
+            entity.ToTable("admins");
+
+            entity.HasIndex(e => e.Username, "admins_username_key").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+
+            entity.Property(e => e.Username)
+                .HasMaxLength(50)
+                .HasColumnName("username");
+
+            entity.Property(e => e.PasswordHash)
+                .HasMaxLength(255)
+                .HasColumnName("password_hash");
+
+            entity.Property(e => e.FullName)
+                .HasMaxLength(100)
+                .HasColumnName("full_name");
+
+            entity.Property(e => e.Email)
+                .HasMaxLength(100)
+                .HasColumnName("email");
+
+            entity.Property(e => e.Role)
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'Moderator'::character varying")
+                .HasColumnName("role");
+
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+
         });
 
         OnModelCreatingPartial(modelBuilder);

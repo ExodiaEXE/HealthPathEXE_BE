@@ -1,0 +1,24 @@
+meta {
+  name: Create User
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/admin/users
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "fullName": "Nguyen Van B",
+    "email": "vanb@gmail.com",
+    "password": "password123",
+    "phone": "0987654321"
+  }
+}

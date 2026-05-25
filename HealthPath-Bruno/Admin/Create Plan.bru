@@ -1,0 +1,30 @@
+meta {
+  name: Create Plan
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/admin/subscriptions/plans
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "name": "Gói Pro 1 Tháng",
+    "code": "PRO_1M",
+    "description": "Gói chuyên nghiệp sử dụng trong 1 tháng",
+    "priceMonthly": 99000,
+    "priceYearly": 0,
+    "currency": "VND",
+    "features": "[\"Tất cả bài tập\", \"Theo dõi tiến độ\", \"Không quảng cáo\"]",
+    "isActive": true,
+    "appleProductId": "com.healthpath.pro.1m",
+    "googleProductId": "healthpath_pro_1m"
+  }
+}

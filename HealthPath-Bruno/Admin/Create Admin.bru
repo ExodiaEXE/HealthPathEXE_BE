@@ -1,0 +1,25 @@
+meta {
+  name: Create Admin
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/admin/auth/create-admin
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "username": "moderator_carrot",
+    "password": "moderatorPassword123",
+    "fullName": "Staff Moderator",
+    "email": "staff@healthpath.vn",
+    "role": "Moderator"
+  }
+}

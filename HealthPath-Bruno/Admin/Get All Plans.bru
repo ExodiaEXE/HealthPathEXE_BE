@@ -1,0 +1,15 @@
+meta {
+  name: Get All Plans
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/admin/subscriptions/plans
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
