@@ -1,0 +1,24 @@
+meta {
+  name: Verify Receipt
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/Subscription/verify-receipt
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "platform": "GooglePlay",
+    "productId": "premium_monthly",
+    "purchaseToken": "mock_purchase_token_123456",
+    "billingCycle": "monthly"
+  }
+}

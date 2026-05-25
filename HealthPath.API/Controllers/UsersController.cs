@@ -1,4 +1,5 @@
-﻿using HealthPath.API.Models;
+using HealthPath.API.Extensions;
+using HealthPath.API.Models;
 using HealthPath.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,12 +23,7 @@ namespace HealthPath.API.Controllers
         public async Task<IActionResult> GetMe()
         {
             // 1. Tự động bóc ID của User từ trong Token ra
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
-            {
-                return Unauthorized(new { message = "Token không hợp lệ!" });
-            }
+            var userId = User.GetUserId();
 
             // 2. Chui vào Database lấy thông tin
             var user = await _userService.GetMeAsync(userId);

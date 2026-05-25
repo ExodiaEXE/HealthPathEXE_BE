@@ -1,0 +1,15 @@
+meta {
+  name: Get My Transactions
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/Subscription/my-transactions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

@@ -17,7 +17,25 @@ DotEnv.Fluent()
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(e => e.Value != null && e.Value.Errors.Count > 0)
+                .SelectMany(e => e.Value!.Errors.Select(x => x.ErrorMessage))
+                .ToList();
+
+            var response = HealthPath.API.Common.ApiResponse<object>.Fail(
+                "Dữ liệu đầu vào không hợp lệ.",
+                HealthPath.API.Common.ErrorCode.VALIDATION_ERROR,
+                errors
+            );
+
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+        };
+    });
 
 // 1. Cấu hình Database PostgreSQL
 builder.Services.AddDbContext<HealthpathDbContext>(options =>
@@ -38,6 +56,8 @@ builder.Services.AddNotificationServices();
 builder.Services.AddFileStorageServices(builder.Configuration);
 builder.Services.AddHangfireServices(builder.Configuration);
 builder.Services.AddAudioServices();
+builder.Services.AddSubscriptionServices();
+builder.Services.AddAdminServices();
 
 // 3. Mở CORS cho Front-end (Web/Mobile) gọi API không bị chặn
 builder.Services.AddCors(options =>
@@ -90,6 +110,15 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim("IsAdmin", "true");
+    });
+});
+
 // <-- CODE BẠN THÊM: Cấu hình Swagger có ổ khóa JWT (Mở rộng từ AddSwaggerGen cũ của ông)
 builder.Services.AddSwaggerGen(c =>
 {
@@ -115,6 +144,9 @@ var app = builder.Build();
 
 // Đăng ký Middleware xử lý lỗi tập trung đầu tiên trong pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Khởi tạo Admin mặc định từ biến môi trường
+await app.SeedDefaultAdminAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,0 +1,15 @@
+meta {
+  name: Toggle User Active
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/admin/users/REPLACE_WITH_USER_GUID/toggle-active
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

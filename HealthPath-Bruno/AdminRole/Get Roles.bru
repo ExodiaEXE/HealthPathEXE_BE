@@ -1,0 +1,14 @@
+meta {
+  name: Get Roles
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/admin/roles
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

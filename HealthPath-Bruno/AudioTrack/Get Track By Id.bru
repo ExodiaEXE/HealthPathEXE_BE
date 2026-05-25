@@ -1,0 +1,14 @@
+meta {
+  name: Get Track By Id
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/AudioTrack/{{trackId}}
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

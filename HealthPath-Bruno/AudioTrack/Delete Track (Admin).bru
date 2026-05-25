@@ -1,0 +1,14 @@
+meta {
+  name: Delete Track (Admin)
+  type: http
+  seq: 22
+}
+
+delete {
+  url: {{baseUrl}}/api/AudioTrack/{{trackId}}
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
