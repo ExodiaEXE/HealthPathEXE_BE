@@ -29,6 +29,10 @@ public partial class User
 
     public DateTime UpdatedAt { get; set; }
 
+    public string? OtpCode { get; set; }
+
+    public DateTime? OtpExpiryTime { get; set; }
+
     public virtual ICollection<AudioTrack> AudioTracks { get; set; } = new List<AudioTrack>();
 
     public virtual ICollection<ChallengeParticipant> ChallengeParticipants { get; set; } = new List<ChallengeParticipant>();
