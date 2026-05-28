@@ -4,6 +4,8 @@ using HealthPath.API.Models.DTOs;
 using HealthPath.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace HealthPath.API.Controllers
 {
@@ -34,6 +36,41 @@ namespace HealthPath.API.Controllers
         {
             var userId = User.GetUserId();
             var result = await _moodCheckinService.GetMyHistoryAsync(userId);
+            return Ok(result);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _moodCheckinService.GetByIdAsync(id, userId);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMoodCheckinDto dto)
+        {
+            var userId = User.GetUserId();
+            var result = await _moodCheckinService.UpdateCheckinAsync(id, userId, dto);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _moodCheckinService.DeleteCheckinAsync(id, userId);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetStreakStats()
+        {
+            var userId = User.GetUserId();
+            var result = await _moodCheckinService.GetStreakStatsAsync(userId);
             return Ok(result);
         }
     }
