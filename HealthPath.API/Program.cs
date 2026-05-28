@@ -51,6 +51,7 @@ builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRecurringRoutineJob, H
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IMissDetectionJob, HealthPath.API.BackgroundJobs.MissDetectionJob>();
 builder.Services.AddScoped<IMoodCheckinService, MoodCheckinService>();
 builder.Services.AddScoped<IGroupChallengeService, GroupChallengeService>();
+builder.Services.AddScoped<IGroupService, GroupService>();
 
 // 5. Đăng ký các dịch vụ bổ sung qua Extension Methods (Notification, File Storage, Hangfire)
 builder.Services.AddNotificationServices();
