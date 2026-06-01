@@ -33,6 +33,10 @@ public partial class User
 
     public DateTime? OtpExpiryTime { get; set; }
 
+    public string? GoogleId { get; set; }
+
+    public string? FacebookId { get; set; }
+
     public virtual ICollection<AudioTrack> AudioTracks { get; set; } = new List<AudioTrack>();
 
     public virtual ICollection<ChallengeParticipant> ChallengeParticipants { get; set; } = new List<ChallengeParticipant>();

@@ -658,6 +658,14 @@ public partial class HealthpathDbContext : DbContext
 
             entity.HasIndex(e => e.Email, "users_email_key").IsUnique();
 
+            entity.HasIndex(e => e.GoogleId, "idx_users_google_id")
+                .IsUnique()
+                .HasFilter("(google_id IS NOT NULL AND deleted_at IS NULL)");
+
+            entity.HasIndex(e => e.FacebookId, "idx_users_facebook_id")
+                .IsUnique()
+                .HasFilter("(facebook_id IS NOT NULL AND deleted_at IS NULL)");
+
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
                 .HasColumnName("id");
@@ -684,6 +692,12 @@ public partial class HealthpathDbContext : DbContext
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
+            entity.Property(e => e.GoogleId)
+                .HasMaxLength(255)
+                .HasColumnName("google_id");
+            entity.Property(e => e.FacebookId)
+                .HasMaxLength(255)
+                .HasColumnName("facebook_id");
         });
 
         modelBuilder.Entity<UserAudioHistory>(entity =>

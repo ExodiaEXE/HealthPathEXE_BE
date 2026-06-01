@@ -37,6 +37,9 @@ builder.Services.AddControllers()
         };
     });
 
+// Register HttpClient for external API calls (e.g., Google/Facebook token verification)
+builder.Services.AddHttpClient();
+
 // 1. Cấu hình Database PostgreSQL
 builder.Services.AddDbContext<HealthpathDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

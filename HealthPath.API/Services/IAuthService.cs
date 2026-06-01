@@ -13,5 +13,10 @@ namespace HealthPath.API.Services
         Task<ApiResponse<object>> VerifyRegisterOtpAsync(VerifyOtpDto request);
         Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordDto request);
         Task<ApiResponse<object>> ResetPasswordWithOtpAsync(ResetPasswordWithOtpDto request);
+
+        // Social auth & linking
+        Task<ApiResponse<AuthResponseDto>> SocialLoginAsync(SocialLoginDto request);
+        Task<ApiResponse<object>> LinkSocialAccountAsync(Guid userId, SocialLinkDto request);
+        Task<ApiResponse<object>> UnlinkSocialAccountAsync(Guid userId, string provider);
     }
 }
