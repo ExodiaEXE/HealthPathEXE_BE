@@ -10,6 +10,7 @@ using MimeKit;
 using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Hangfire; // BỔ SUNG: Khai báo thư viện Hangfire
 
 namespace HealthPath.API.Services
 {
@@ -60,31 +61,32 @@ namespace HealthPath.API.Services
             newUser.OtpCode = otpCode;
             newUser.OtpExpiryTime = DateTime.UtcNow.AddMinutes(5);
 
-            // Khởi tạo quy trình Transaction bảo vệ dữ liệu, hủy lưu nếu không thể gửi OTP tới Gmail
+            // Khởi tạo quy trình Transaction bảo vệ dữ liệu
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
 
-                // Thực hiện gửi email kích hoạt chứa mã số OTP 6 chữ số
-                await SendOtpEmailAsync(
+                // Lưu chính thức vào DB trước để bảo toàn dữ liệu
+                await transaction.CommitAsync();
+
+                // SỬA TẠI ĐÂY: Ném tác vụ gửi email vào hàng đợi chạy ngầm của Hangfire
+                BackgroundJob.Enqueue(() => SendOtpEmailAsync(
                     newUser.Email,
                     newUser.FullName,
                     "Xác thực tài khoản HealthPath",
                     "MÃ KÍCH HOẠT TÀI KHOẢN",
                     $"Cảm ơn bạn đã đăng ký tài khoản tại HealthPath. Mã OTP kích hoạt của bạn là: <strong style='font-size: 20px; color: #4CAF50; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút."
-                );
+                ));
 
-                // Nếu luồng gửi thư chạy thành công hoàn toàn, chính thức lưu dữ liệu vào cơ sở dữ liệu
-                await transaction.CommitAsync();
-                return ApiResponse<object>.Ok(new { }, "Đăng ký thành công!");
+                // API kết thúc ngay lập tức trong 0.1 giây
+                return ApiResponse<object>.Ok(new { }, "Đăng ký thành công! Vui lòng kiểm tra email để lấy mã xác thực.");
             }
             catch (Exception ex)
             {
-                // Thực hiện khôi phục lại trạng thái cũ của Database nếu có bất cứ lỗi liên lạc hòm thư nào xảy ra
                 await transaction.RollbackAsync();
-                return ApiResponse<object>.Fail($"Hệ thống không thể gửi mã xác thực tới Gmail này. Vui lòng kiểm tra lại sự tồn tại của tài khoản Email! Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
+                return ApiResponse<object>.Fail($"Hệ thống gặp sự cố khi lưu tài khoản. Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
             }
         }
 
@@ -140,58 +142,6 @@ namespace HealthPath.API.Services
             return tokenHandler.WriteToken(token);
         }
 
-        // --- CÁC PHƯƠNG THỨC NÂNG CẤP BỔ SUNG ĐỂ SỬ DỤNG OTP VÀ GỬI EMAIL ---
-
-        private async Task SendOtpEmailAsync(string targetEmail, string targetName, string subject, string title, string bodyText)
-        {
-            var host = _configuration["Smtp:Host"];
-            var username = _configuration["Smtp:Username"];
-            var password = _configuration["Smtp:Password"];
-            var portStr = _configuration["Smtp:Port"];
-            int port = int.TryParse(portStr, out int p) ? p : 587;
-
-            if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-            {
-                throw new Exception("Cấu hình hệ thống SMTP chưa hoàn thiện.");
-            }
-
-            try
-            {
-                var emailMessage = new MimeMessage();
-                var fromName = _configuration["Smtp:FromName"] ?? "HealthPath";
-                var fromEmail = _configuration["Smtp:FromEmail"] ?? "noreply@healthpath.vn";
-
-                emailMessage.From.Add(new MailboxAddress(fromName, fromEmail));
-                emailMessage.To.Add(new MailboxAddress(targetName, targetEmail));
-                emailMessage.Subject = subject;
-
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = $@"
-                        <div style='font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 500px; margin: auto; border: 1px solid #eee; border-radius: 5px;'>
-                            <h2 style='color: #4CAF50; text-align: center;'>{title}</h2>
-                            <p>Xin chào <strong>{targetName}</strong>,</p>
-                            <p>{bodyText}</p>
-                            <hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;' />
-                            <small style='color: #888; display: block; text-align: center;'>HealthPath — Ứng dụng Quản lý Lối sống Lành mạnh</small>
-                        </div>"
-                };
-
-                emailMessage.Body = bodyBuilder.ToMessageBody();
-
-                using var client = new SmtpClient();
-                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.StartTlsWhenAvailable);
-                await client.AuthenticateAsync(username, password);
-                await client.SendAsync(emailMessage);
-                await client.DisconnectAsync(true);
-            }
-            catch (Exception ex)
-            {
-                // Ném ngoại lệ ra ngoài để kích hoạt cơ chế Rollback dữ liệu tại các hàm gọi nghiệp vụ
-                throw new Exception($"Không thể kết nối máy chủ Mail hoặc Email đích từ chối tiếp nhận: {ex.Message}", ex);
-            }
-        }
-
         public async Task<ApiResponse<object>> VerifyRegisterOtpAsync(VerifyOtpDto request)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email && u.DeletedAt == null);
@@ -243,21 +193,24 @@ namespace HealthPath.API.Services
             {
                 await _context.SaveChangesAsync();
 
-                await SendOtpEmailAsync(
+                // Lưu thành công trạng thái OTP mới xuống DB
+                await transaction.CommitAsync();
+
+                // SỬA TẠI ĐÂY: Ném tác vụ gửi email vào hàng đợi chạy ngầm của Hangfire
+                BackgroundJob.Enqueue(() => SendOtpEmailAsync(
                     user.Email,
                     user.FullName,
                     "Khôi phục mật khẩu HealthPath",
                     "MÃ OTP ĐẶT LẠI MẬT KHẨU",
                     $"Bạn đã yêu cầu đặt lại mật khẩu. Mã OTP của bạn là: <strong style='font-size: 20px; color: #f44336; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút. Nếu không phải bạn yêu cầu, vui lòng bỏ qua email này."
-                );
+                ));
 
-                await transaction.CommitAsync();
-                return ApiResponse<object>.Ok(new { }, "Mã khôi phục mật khẩu đã được gửi về email của bạn.");
+                return ApiResponse<object>.Ok(new { }, "Yêu cầu thành công! Hệ thống đang gửi mã khôi phục mật khẩu về email của bạn.");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ApiResponse<object>.Fail($"Hệ thống không thể gửi mã OTP khôi phục mật khẩu. Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
+                return ApiResponse<object>.Fail($"Hệ thống gặp sự cố. Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
             }
         }
 
@@ -286,6 +239,58 @@ namespace HealthPath.API.Services
 
             await _context.SaveChangesAsync();
             return ApiResponse<object>.Ok(new { }, "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.");
+        }
+
+        // --- HÀM GỬI EMAIL CHẠY NGẦM ---
+        // BẮT BUỘC ĐỔI THÀNH PUBLIC ĐỂ HANGFIRE CÓ THỂ TRUY CẬP VÀ CHẠY NGẦM
+        public async Task SendOtpEmailAsync(string targetEmail, string targetName, string subject, string title, string bodyText)
+        {
+            var host = _configuration["Smtp:Host"];
+            var username = _configuration["Smtp:Username"];
+            var password = _configuration["Smtp:Password"];
+            var portStr = _configuration["Smtp:Port"];
+            int port = int.TryParse(portStr, out int p) ? p : 587;
+
+            if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                throw new Exception("Cấu hình hệ thống SMTP chưa hoàn thiện.");
+            }
+
+            try
+            {
+                var emailMessage = new MimeMessage();
+                var fromName = _configuration["Smtp:FromName"] ?? "HealthPath";
+                var fromEmail = _configuration["Smtp:FromEmail"] ?? "noreply@healthpath.vn";
+
+                emailMessage.From.Add(new MailboxAddress(fromName, fromEmail));
+                emailMessage.To.Add(new MailboxAddress(targetName, targetEmail));
+                emailMessage.Subject = subject;
+
+                var bodyBuilder = new BodyBuilder
+                {
+                    HtmlBody = $@"
+                        <div style='font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 500px; margin: auto; border: 1px solid #eee; border-radius: 5px;'>
+                            <h2 style='color: #4CAF50; text-align: center;'>{title}</h2>
+                            <p>Xin chào <strong>{targetName}</strong>,</p>
+                            <p>{bodyText}</p>
+                            <hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;' />
+                            <small style='color: #888; display: block; text-align: center;'>HealthPath — Ứng dụng Quản lý Lối sống Lành mạnh</small>
+                        </div>"
+                };
+
+                emailMessage.Body = bodyBuilder.ToMessageBody();
+
+                using var client = new SmtpClient();
+                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.StartTlsWhenAvailable);
+                await client.AuthenticateAsync(username, password);
+                await client.SendAsync(emailMessage);
+                await client.DisconnectAsync(true);
+            }
+            catch (Exception ex)
+            {
+                // Nếu bị lỗi mạng đột xuất, lỗi sẽ văng ra đây và Hangfire sẽ tự động ghi log và thử gửi lại (Retry) sau vài phút
+                throw new Exception($"Không thể kết nối máy chủ Mail hoặc Email đích từ chối tiếp nhận: {ex.Message}", ex);
+            }
         }
     }
 }
