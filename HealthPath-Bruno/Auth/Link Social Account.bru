@@ -1,0 +1,22 @@
+meta {
+  name: Link Social Account
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/link-social
+  auth: none
+  body: json
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "token": "mock_facebook_token_user789",
+    "provider": "facebook"
+  }
+}

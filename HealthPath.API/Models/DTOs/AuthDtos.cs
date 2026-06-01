@@ -53,4 +53,22 @@ namespace HealthPath.API.Models
         [MinLength(6)]
         public string NewPassword { get; set; } = string.Empty;
     }
+
+    public class SocialLoginDto
+    {
+        [Required(ErrorMessage = "Token không được để trống.")]
+        public string Token { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Provider không được để trống.")]
+        public string Provider { get; set; } = string.Empty; // "google" or "facebook"
+    }
+
+    public class SocialLinkDto
+    {
+        [Required(ErrorMessage = "Token không được để trống.")]
+        public string Token { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Provider không được để trống.")]
+        public string Provider { get; set; } = string.Empty; // "google" or "facebook"
+    }
 }

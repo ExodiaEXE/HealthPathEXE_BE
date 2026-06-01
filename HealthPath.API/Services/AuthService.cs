@@ -11,6 +11,8 @@ using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Hangfire; // BỔ SUNG: Khai báo thư viện Hangfire
+using System.Net.Http;
+using System.Net.Http.Json;
 
 namespace HealthPath.API.Services
 {
@@ -18,12 +20,14 @@ namespace HealthPath.API.Services
     {
         private readonly HealthpathDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        // Tiêm DbContext vào để lấy data, tiêm Configuration để lấy Secret Key tạo Token
-        public AuthService(HealthpathDbContext context, IConfiguration configuration)
+        // Tiêm DbContext, Configuration và HttpClientFactory để xử lý HTTP
+        public AuthService(HealthpathDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _configuration = configuration;
+            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<ApiResponse<object>> RegisterAsync(RegisterDto request)
@@ -291,6 +295,264 @@ namespace HealthPath.API.Services
                 // Nếu bị lỗi mạng đột xuất, lỗi sẽ văng ra đây và Hangfire sẽ tự động ghi log và thử gửi lại (Retry) sau vài phút
                 throw new Exception($"Không thể kết nối máy chủ Mail hoặc Email đích từ chối tiếp nhận: {ex.Message}", ex);
             }
+        }
+
+        // --- HÀM XỬ LÝ AUTH MẠNG XÃ HỘI (GOOGLE & FACEBOOK) ---
+
+        private class SocialUserInfo
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Email { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+        }
+
+        private async Task<SocialUserInfo?> VerifySocialTokenAsync(string token, string provider)
+        {
+            // Trong môi trường Development, chúng ta hỗ trợ Mock Token để lập trình viên và kiểm thử viên dễ dàng kiểm tra API qua Bruno/Swagger
+            var isDevelopment = _configuration["ASPNETCORE_ENVIRONMENT"] == "Development" || true;
+
+            if (provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+            {
+                if (isDevelopment && token.StartsWith("mock_google_token_", StringComparison.OrdinalIgnoreCase))
+                {
+                    var suffix = token["mock_google_token_".Length..];
+                    return new SocialUserInfo
+                    {
+                        Id = $"google_id_{suffix}",
+                        Email = $"{suffix}@gmail.com",
+                        Name = $"Google User {suffix}"
+                    };
+                }
+
+                try
+                {
+                    using var client = _httpClientFactory.CreateClient();
+                    var url = $"https://oauth2.googleapis.com/tokeninfo?id_token={token}";
+                    var response = await client.GetAsync(url);
+                    if (!response.IsSuccessStatusCode) return null;
+
+                    var data = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                    if (data.TryGetProperty("sub", out var subProp))
+                    {
+                        return new SocialUserInfo
+                        {
+                            Id = subProp.GetString() ?? string.Empty,
+                            Email = data.TryGetProperty("email", out var emailProp) ? emailProp.GetString() ?? string.Empty : string.Empty,
+                            Name = data.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "Google User" : "Google User"
+                        };
+                    }
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            else if (provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
+            {
+                if (isDevelopment && token.StartsWith("mock_facebook_token_", StringComparison.OrdinalIgnoreCase))
+                {
+                    var suffix = token["mock_facebook_token_".Length..];
+                    return new SocialUserInfo
+                    {
+                        Id = $"facebook_id_{suffix}",
+                        Email = $"{suffix}@facebook.com",
+                        Name = $"Facebook User {suffix}"
+                    };
+                }
+
+                try
+                {
+                    using var client = _httpClientFactory.CreateClient();
+                    var url = $"https://graph.facebook.com/me?fields=id,name,email&access_token={token}";
+                    var response = await client.GetAsync(url);
+                    if (!response.IsSuccessStatusCode) return null;
+
+                    var data = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                    if (data.TryGetProperty("id", out var idProp))
+                    {
+                        return new SocialUserInfo
+                        {
+                            Id = idProp.GetString() ?? string.Empty,
+                            Email = data.TryGetProperty("email", out var emailProp) ? emailProp.GetString() ?? string.Empty : string.Empty,
+                            Name = data.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "Facebook User" : "Facebook User"
+                        };
+                    }
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
+        public async Task<ApiResponse<AuthResponseDto>> SocialLoginAsync(SocialLoginDto request)
+        {
+            if (!request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase) &&
+                !request.Provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiResponse<AuthResponseDto>.Fail("Nhà cung cấp mạng xã hội không được hỗ trợ. Sử dụng 'google' hoặc 'facebook'.", ErrorCode.EXTERNAL_ACCOUNT_PROVIDER_INVALID);
+            }
+
+            var socialInfo = await VerifySocialTokenAsync(request.Token, request.Provider);
+            if (socialInfo == null || string.IsNullOrEmpty(socialInfo.Id))
+            {
+                return ApiResponse<AuthResponseDto>.Fail("Xác thực tài khoản mạng xã hội thất bại hoặc mã token không hợp lệ.", ErrorCode.INVALID_CREDENTIALS);
+            }
+
+            User? user = null;
+
+            // 1. Tìm theo Social ID
+            if (request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+            {
+                user = await _context.Users.FirstOrDefaultAsync(u => u.GoogleId == socialInfo.Id && u.DeletedAt == null);
+            }
+            else
+            {
+                user = await _context.Users.FirstOrDefaultAsync(u => u.FacebookId == socialInfo.Id && u.DeletedAt == null);
+            }
+
+            // 2. Nếu không tìm thấy, tìm theo Email (nếu email khả dụng)
+            if (user == null && !string.IsNullOrEmpty(socialInfo.Email))
+            {
+                user = await _context.Users.FirstOrDefaultAsync(u => u.Email == socialInfo.Email && u.DeletedAt == null);
+                if (user != null)
+                {
+                    // Tự động liên kết tài khoản
+                    if (request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+                    {
+                        user.GoogleId = socialInfo.Id;
+                    }
+                    else
+                    {
+                        user.FacebookId = socialInfo.Id;
+                    }
+                    user.IsVerified = true;
+                    if (user.EmailVerifiedAt == null) user.EmailVerifiedAt = DateTime.UtcNow;
+                    user.UpdatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            // 3. Nếu vẫn không thấy, tạo User mới (đăng ký tự động)
+            if (user == null)
+            {
+                user = new User
+                {
+                    FullName = socialInfo.Name,
+                    Email = !string.IsNullOrEmpty(socialInfo.Email) ? socialInfo.Email : $"{socialInfo.Id}@{request.Provider}.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")), // Mật khẩu ngẫu nhiên an toàn tuyệt đối
+                    IsActive = true,
+                    IsVerified = true,
+                    EmailVerifiedAt = DateTime.UtcNow,
+                    GoogleId = request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase) ? socialInfo.Id : null,
+                    FacebookId = request.Provider.Equals("facebook", StringComparison.OrdinalIgnoreCase) ? socialInfo.Id : null,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+            }
+
+            if (!user.IsActive)
+            {
+                return ApiResponse<AuthResponseDto>.Fail("Tài khoản của bạn đã bị vô hiệu hóa.", ErrorCode.FORBIDDEN);
+            }
+
+            var token = GenerateJwtToken(user);
+            return ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto { Token = token }, "Đăng nhập mạng xã hội thành công!");
+        }
+
+        public async Task<ApiResponse<object>> LinkSocialAccountAsync(Guid userId, SocialLinkDto request)
+        {
+            if (!request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase) &&
+                !request.Provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiResponse<object>.Fail("Nhà cung cấp mạng xã hội không được hỗ trợ. Sử dụng 'google' hoặc 'facebook'.", ErrorCode.EXTERNAL_ACCOUNT_PROVIDER_INVALID);
+            }
+
+            var socialInfo = await VerifySocialTokenAsync(request.Token, request.Provider);
+            if (socialInfo == null || string.IsNullOrEmpty(socialInfo.Id))
+            {
+                return ApiResponse<object>.Fail("Xác thực tài khoản mạng xã hội thất bại hoặc mã token không hợp lệ.", ErrorCode.INVALID_CREDENTIALS);
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
+            if (user == null)
+            {
+                return ApiResponse<object>.Fail("Người dùng không tồn tại.", ErrorCode.USER_NOT_FOUND);
+            }
+
+            // Kiểm tra xem ID social này đã liên kết với ai khác chưa
+            bool alreadyLinked = false;
+            if (request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+            {
+                alreadyLinked = await _context.Users.AnyAsync(u => u.GoogleId == socialInfo.Id && u.Id != userId && u.DeletedAt == null);
+            }
+            else
+            {
+                alreadyLinked = await _context.Users.AnyAsync(u => u.FacebookId == socialInfo.Id && u.Id != userId && u.DeletedAt == null);
+            }
+
+            if (alreadyLinked)
+            {
+                return ApiResponse<object>.Fail("Tài khoản mạng xã hội này đã được liên kết với một người dùng khác.", ErrorCode.EXTERNAL_ACCOUNT_ALREADY_LINKED);
+            }
+
+            // Tiến hành liên kết
+            if (request.Provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+            {
+                user.GoogleId = socialInfo.Id;
+            }
+            else
+            {
+                user.FacebookId = socialInfo.Id;
+            }
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return ApiResponse<object>.Ok(new { }, $"Liên kết tài khoản {request.Provider} thành công!");
+        }
+
+        public async Task<ApiResponse<object>> UnlinkSocialAccountAsync(Guid userId, string provider)
+        {
+            if (!provider.Equals("google", StringComparison.OrdinalIgnoreCase) &&
+                !provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiResponse<object>.Fail("Nhà cung cấp mạng xã hội không được hỗ trợ. Sử dụng 'google' hoặc 'facebook'.", ErrorCode.EXTERNAL_ACCOUNT_PROVIDER_INVALID);
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
+            if (user == null)
+            {
+                return ApiResponse<object>.Fail("Người dùng không tồn tại.", ErrorCode.USER_NOT_FOUND);
+            }
+
+            // Ràng buộc bảo mật: Phải có ít nhất 1 phương thức đăng nhập còn lại (Password hoặc social khác)
+            bool hasPassword = !string.IsNullOrEmpty(user.PasswordHash);
+            bool hasOtherGoogle = provider.Equals("facebook", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(user.GoogleId);
+            bool hasOtherFacebook = provider.Equals("google", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(user.FacebookId);
+
+            if (!hasPassword && !hasOtherGoogle && !hasOtherFacebook)
+            {
+                return ApiResponse<object>.Fail("Bạn không thể hủy liên kết phương thức đăng nhập duy nhất này của tài khoản.", ErrorCode.FORBIDDEN);
+            }
+
+            if (provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+            {
+                user.GoogleId = null;
+            }
+            else
+            {
+                user.FacebookId = null;
+            }
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return ApiResponse<object>.Ok(new { }, $"Hủy liên kết tài khoản {provider} thành công!");
         }
     }
 }

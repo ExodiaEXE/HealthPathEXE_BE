@@ -1,0 +1,15 @@
+meta {
+  name: Unlink Social Account
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/Auth/unlink-social?provider=facebook
+  auth: none
+  body: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

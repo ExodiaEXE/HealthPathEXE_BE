@@ -1,7 +1,9 @@
 using HealthPath.API.Models;
 using HealthPath.API.Services;
 using HealthPath.API.Common;
+using HealthPath.API.Extensions; // Bổ sung để dùng GetUserId()
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization; // Bổ sung để dùng [Authorize]
 
 namespace HealthPath.API.Controllers
 {
@@ -52,6 +54,34 @@ namespace HealthPath.API.Controllers
         public async Task<IActionResult> ResetPasswordWithOtp([FromBody] ResetPasswordWithOtpDto request)
         {
             var result = await _authService.ResetPasswordWithOtpAsync(request);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("social-login")]
+        public async Task<IActionResult> SocialLogin([FromBody] SocialLoginDto request)
+        {
+            var result = await _authService.SocialLoginAsync(request);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("link-social")]
+        public async Task<IActionResult> LinkSocial([FromBody] SocialLinkDto request)
+        {
+            var userId = User.GetUserId();
+            var result = await _authService.LinkSocialAccountAsync(userId, request);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("unlink-social")]
+        public async Task<IActionResult> UnlinkSocial([FromQuery] string provider)
+        {
+            var userId = User.GetUserId();
+            var result = await _authService.UnlinkSocialAccountAsync(userId, provider);
             if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
