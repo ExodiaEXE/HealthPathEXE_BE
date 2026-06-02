@@ -10,6 +10,31 @@ namespace HealthPath.API.Extensions;
 
 public static class HangfireServiceExtensions
 {
+    /// <summary>
+    /// Linux/Docker dùng IANA "Asia/Ho_Chi_Minh"; Windows dùng "SE Asia Standard Time".
+    /// </summary>
+    private static TimeZoneInfo VietnamTimeZone
+    {
+        get
+        {
+            foreach (var id in new[] { "Asia/Ho_Chi_Minh", "SE Asia Standard Time" })
+            {
+                try
+                {
+                    return TimeZoneInfo.FindSystemTimeZoneById(id);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                }
+                catch (InvalidTimeZoneException)
+                {
+                }
+            }
+
+            return TimeZoneInfo.Utc;
+        }
+    }
+
     public static IServiceCollection AddHangfireServices(this IServiceCollection services, IConfiguration configuration)
     {
         // 1. Đăng ký Hangfire Services sử dụng Database PostgreSQL làm Storage
@@ -37,7 +62,7 @@ public static class HangfireServiceExtensions
             "recurring-routines",
             job => job.ExecuteAsync(),
             "0 0 * * *",
-            new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time") }
+            new RecurringJobOptions { TimeZone = VietnamTimeZone }
         );
 
         // Job quét bài tập lỡ: Tự động chạy hàng ngày lúc 23:50 đêm
@@ -45,7 +70,7 @@ public static class HangfireServiceExtensions
             "miss-detection",
             job => job.ExecuteAsync(),
             "50 23 * * *",
-            new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time") }
+            new RecurringJobOptions { TimeZone = VietnamTimeZone }
         );
 
         return app;

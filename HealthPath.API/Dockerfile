@@ -17,8 +17,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build-env /app/out .
 
-# Mở cổng 8080 cho container
+ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-# Chạy file thực thi của Backend
 ENTRYPOINT ["dotnet", "HealthPath.API.dll"]

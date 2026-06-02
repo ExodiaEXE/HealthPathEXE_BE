@@ -1,0 +1,11 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/.env
+**/*.user
+**/TestResults
+**/HealthPath-Bruno
+**/Document
+**/*.md
+Dockerfile.txt
