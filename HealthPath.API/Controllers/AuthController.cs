@@ -42,6 +42,14 @@ namespace HealthPath.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("resend-verification-otp")]
+        public async Task<IActionResult> ResendVerificationOtp([FromBody] ForgotPasswordDto request)
+        {
+            var result = await _authService.ResendVerificationOtpAsync(request);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
         {
@@ -54,6 +62,16 @@ namespace HealthPath.API.Controllers
         public async Task<IActionResult> ResetPasswordWithOtp([FromBody] ResetPasswordWithOtpDto request)
         {
             var result = await _authService.ResetPasswordWithOtpAsync(request);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request)
+        {
+            var userId = User.GetUserId();
+            var result = await _authService.ChangePasswordAsync(userId, request);
             if (!result.Success) return BadRequest(result);
             return Ok(result);
         }

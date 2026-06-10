@@ -1,0 +1,286 @@
+{
+  "description": "Seed thư viện routine mẫu HealthPath. POST từng phần tử trong mảng routines tới POST /api/Routine (cần Bearer JWT). Swagger: Authorize → dán token user/admin.",
+  "categories": ["exercise", "yoga", "meditation", "breathing", "reading", "other"],
+  "difficulties": ["easy", "medium", "hard"],
+  "routines": [
+    {
+      "title": "Uống 1 ly nước sau khi thức dậy",
+      "description": "Uống chậm 250–300ml nước ấm hoặc nước lọc để khởi động cơ thể sau giấc ngủ.",
+      "category": "other",
+      "difficulty": "easy",
+      "durationMinutes": 2,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Viết 3 điều biết ơn",
+      "description": "Ghi nhanh 3 điều tích cực trong ngày hôm nay hoặc tuần qua.",
+      "category": "other",
+      "difficulty": "easy",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Viết mục tiêu 3 việc hôm nay",
+      "description": "Chọn 3 việc quan trọng nhất cần hoàn thành trong ngày, ưu tiên theo thứ tự.",
+      "category": "other",
+      "difficulty": "easy",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Nghe nhạc thư giãn",
+      "description": "Nghe playlist nhẹ nhàng 10 phút, không lướt mạng xã hội hay làm việc khác.",
+      "category": "other",
+      "difficulty": "easy",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Vẽ hoặc tô màu thư giãn",
+      "description": "Sketch đơn giản, tô mandala hoặc màu nước — tập trung vào quá trình, không cần đẹp.",
+      "category": "other",
+      "difficulty": "easy",
+      "durationMinutes": 15,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Chuẩn bị bữa sáng lành mạnh",
+      "description": "Tự nấu hoặc chuẩn bị bữa sáng cân bằng: tinh bột, protein, rau củ.",
+      "category": "other",
+      "difficulty": "medium",
+      "durationMinutes": 20,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Giãn cơ cổ – vai tại bàn",
+      "description": "Xoay cổ nhẹ, vai lên xuống, gập duỗi cổ tay — 5 động tác, mỗi động tác 30 giây.",
+      "category": "exercise",
+      "difficulty": "easy",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Đi bộ nhẹ 10 phút",
+      "description": "Đi bộ quanh nhà hoặc công viên, hít thở đều, không dùng điện thoại.",
+      "category": "exercise",
+      "difficulty": "easy",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Giãn cơ toàn thân",
+      "description": "Duỗi tay, lưng, đùi trước và sau — phù hợp sau khi ngồi lâu.",
+      "category": "exercise",
+      "difficulty": "medium",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Squat 20 lần",
+      "description": "Squat chân rộng bằng vai, lưng thẳng, đùi song song sàn khi xuống.",
+      "category": "exercise",
+      "difficulty": "medium",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Plank giữ 1 phút",
+      "description": "Giữ tư thế plank, bụng siết, lưng thẳng — có thể chia 3 lần 20 giây.",
+      "category": "exercise",
+      "difficulty": "hard",
+      "durationMinutes": 3,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Chạy bộ nhẹ 20 phút",
+      "description": "Chạy bộ tốc độ vừa phải, có thể xen kẽ đi bộ nhanh. Khởi động 2 phút trước khi chạy.",
+      "category": "exercise",
+      "difficulty": "hard",
+      "durationMinutes": 20,
+      "isPremium": true,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "HIIT ngắn 12 phút",
+      "description": "4 động tác × 45 giây tập / 15 giây nghỉ × 3 vòng: jumping jack, squat, mountain climber, burpee.",
+      "category": "exercise",
+      "difficulty": "hard",
+      "durationMinutes": 12,
+      "isPremium": true,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Yoga buổi sáng cơ bản",
+      "description": "Chào mặt trời rút gọn 3 vòng: lời chào, chó úp, tư thế chiến binh.",
+      "category": "yoga",
+      "difficulty": "medium",
+      "durationMinutes": 15,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Tư thế cây và chiến binh",
+      "description": "Giữ tư thế cây (Vrikshasana) và chiến binh I mỗi bên 30 giây, tập trung thăng bằng.",
+      "category": "yoga",
+      "difficulty": "easy",
+      "durationMinutes": 8,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Yoga giảm căng thẳng",
+      "description": "Tư thế em bé, con quạ, xoắn ngồi nhẹ — giữ mỗi tư thế 1–2 phút.",
+      "category": "yoga",
+      "difficulty": "easy",
+      "durationMinutes": 12,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Kéo giãn hông và đùi sau",
+      "description": "Bồ câu, gập trước ngồi, kéo giãn gân kheo — giúp giảm cứng hông sau ngồi lâu.",
+      "category": "yoga",
+      "difficulty": "medium",
+      "durationMinutes": 12,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Yoga flow buổi tối",
+      "description": "Chuỗi chuyển động chậm kết hợp thở sâu, chuẩn bị cơ thể và tâm trí trước khi ngủ.",
+      "category": "yoga",
+      "difficulty": "medium",
+      "durationMinutes": 18,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thiền 5 phút",
+      "description": "Ngồi yên, tập trung hơi thở ra vào, không đánh giá suy nghĩ xuất hiện.",
+      "category": "meditation",
+      "difficulty": "easy",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thiền chánh niệm 10 phút",
+      "description": "Theo dõi hơi thở hoặc cảm giác cơ thể, đưa sự chú ý về hiện tại khi bị xao nhãng.",
+      "category": "meditation",
+      "difficulty": "medium",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Body scan 15 phút",
+      "description": "Quét cơ thể từ đầu đến chân, thư giãn từng vùng, thường dùng trước khi ngủ.",
+      "category": "meditation",
+      "difficulty": "medium",
+      "durationMinutes": 15,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thiền đi bộ chậm",
+      "description": "Đi bộ chậm trong không gian yên tĩnh, chú ý từng bước chân và nhịp thở.",
+      "category": "meditation",
+      "difficulty": "easy",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thiền tối trước khi ngủ",
+      "description": "Ngồi hoặc nằm, thở chậm, buông bỏ căng thẳng trong ngày.",
+      "category": "meditation",
+      "difficulty": "easy",
+      "durationMinutes": 8,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thở bụng 5 phút",
+      "description": "Hít 4 giây — giữ 2 giây — thở 6 giây, lặp 10 lần, tay đặt trên bụng.",
+      "category": "breathing",
+      "difficulty": "easy",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thở sâu 3 phút",
+      "description": "Thở chậm qua mũi, thả lỏng vai — dùng khi căng thẳng hoặc mệt.",
+      "category": "breathing",
+      "difficulty": "easy",
+      "durationMinutes": 3,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thở hộp 4-4-4-4",
+      "description": "Hít 4s — giữ 4s — thở 4s — giữ 4s. Lặp 8–10 chu kỳ để bình tĩnh nhanh.",
+      "category": "breathing",
+      "difficulty": "medium",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Thở 4-7-8",
+      "description": "Hít 4 giây, giữ 7 giây, thở 8 giây — kỹ thuật thư giãn trước khi ngủ.",
+      "category": "breathing",
+      "difficulty": "medium",
+      "durationMinutes": 5,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Đọc sách 15 phút",
+      "description": "Đọc sách giấy hoặc ebook, tắt thông báo điện thoại trong suốt thời gian đọc.",
+      "category": "reading",
+      "difficulty": "easy",
+      "durationMinutes": 15,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Nghe podcast 10 phút",
+      "description": "Chọn một tập podcast ngắn về sức khỏe, phát triển bản thân hoặc chủ đề yêu thích.",
+      "category": "reading",
+      "difficulty": "easy",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Ghi nhật ký cảm xúc",
+      "description": "Viết 5–10 dòng về cảm giác hiện tại, điều khiến bạn vui hoặc lo lắng.",
+      "category": "reading",
+      "difficulty": "easy",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    },
+    {
+      "title": "Xem video học hỏi ngắn",
+      "description": "Xem một video TED, khóa học ngắn hoặc bài giảng 10 phút về kỹ năng mới.",
+      "category": "reading",
+      "difficulty": "medium",
+      "durationMinutes": 10,
+      "isPremium": false,
+      "thumbnailUrl": null
+    }
+  ]
+}

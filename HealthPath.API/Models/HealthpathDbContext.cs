@@ -24,6 +24,7 @@ public partial class HealthpathDbContext : DbContext
     public virtual DbSet<Group> Groups { get; set; } = null!;
     public virtual DbSet<GroupChallenge> GroupChallenges { get; set; } = null!;
     public virtual DbSet<GroupMember> GroupMembers { get; set; } = null!;
+    public virtual DbSet<GroupTeamCheckin> GroupTeamCheckins { get; set; } = null!;
     public virtual DbSet<MoodCheckin> MoodCheckins { get; set; } = null!;
     public virtual DbSet<Notification> Notifications { get; set; } = null!;
     public virtual DbSet<NotificationSetting> NotificationSettings { get; set; } = null!;
@@ -40,6 +41,11 @@ public partial class HealthpathDbContext : DbContext
     public virtual DbSet<UserStats> UserStats { get; set; } = null!;
     public virtual DbSet<RecurringTemplate> RecurringTemplates { get; set; } = null!;
     public virtual DbSet<DeviceToken> DeviceTokens { get; set; } = null!;
+    public virtual DbSet<UserCompanion> UserCompanions { get; set; } = null!;
+    public virtual DbSet<CompanionCatalogItem> CompanionCatalogItems { get; set; } = null!;
+    public virtual DbSet<CompanionInventory> CompanionInventories { get; set; } = null!;
+    public virtual DbSet<CompanionMissionTemplate> CompanionMissionTemplates { get; set; } = null!;
+    public virtual DbSet<CompanionMissionProgress> CompanionMissionProgresses { get; set; } = null!;
 
     public virtual DbSet<AudioCategory> AudioCategories { get; set; } = null!;
     public virtual DbSet<UserFavoriteTrack> UserFavoriteTracks { get; set; } = null!;
@@ -347,6 +353,38 @@ public partial class HealthpathDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.GroupMembers)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("group_members_user_id_fkey");
+        });
+
+        modelBuilder.Entity<GroupTeamCheckin>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("group_team_checkins_pkey");
+
+            entity.ToTable("group_team_checkins");
+
+            entity.HasIndex(e => new { e.GroupId, e.UserId, e.CheckinDate }, "group_team_checkins_group_user_date_key")
+                .IsUnique()
+                .HasFilter("(deleted_at IS NULL)");
+
+            entity.HasIndex(e => e.GroupId, "idx_group_team_checkins_group").HasFilter("(deleted_at IS NULL)");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.CheckinDate).HasColumnName("checkin_date");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasOne(d => d.Group).WithMany(p => p.GroupTeamCheckins)
+                .HasForeignKey(d => d.GroupId)
+                .HasConstraintName("group_team_checkins_group_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("group_team_checkins_user_id_fkey");
         });
 
         modelBuilder.Entity<MoodCheckin>(entity =>
@@ -1131,6 +1169,103 @@ public partial class HealthpathDbContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
 
+        });
+
+        modelBuilder.Entity<UserCompanion>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("user_companions_pkey");
+            entity.ToTable("user_companions");
+            entity.HasIndex(e => e.UserId, "user_companions_user_id_key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()").HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Level).HasDefaultValue(1).HasColumnName("level");
+            entity.Property(e => e.Xp).HasDefaultValue(0).HasColumnName("xp");
+            entity.Property(e => e.Coins).HasDefaultValue(100).HasColumnName("coins");
+            entity.Property(e => e.Hunger).HasDefaultValue(70).HasColumnName("hunger");
+            entity.Property(e => e.Happiness).HasDefaultValue(80).HasColumnName("happiness");
+            entity.Property(e => e.Energy).HasDefaultValue(90).HasColumnName("energy");
+            entity.Property(e => e.RoomTheme).HasMaxLength(50).HasDefaultValue("cozy").HasColumnName("room_theme");
+            entity.Property(e => e.EquippedItemIds).HasDefaultValue("[]").HasColumnName("equipped_item_ids");
+            entity.Property(e => e.LastFeedAt).HasColumnName("last_feed_at");
+            entity.Property(e => e.LastPetAt).HasColumnName("last_pet_at");
+            entity.Property(e => e.LastDecayAt).HasDefaultValueSql("now()").HasColumnName("last_decay_at");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
+            entity.HasOne(d => d.User).WithOne(p => p.UserCompanion)
+                .HasForeignKey<UserCompanion>(d => d.UserId)
+                .HasConstraintName("user_companions_user_id_fkey");
+        });
+
+        modelBuilder.Entity<CompanionCatalogItem>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("companion_catalog_items_pkey");
+            entity.ToTable("companion_catalog_items");
+            entity.HasIndex(e => e.Sku, "companion_catalog_items_sku_key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()").HasColumnName("id");
+            entity.Property(e => e.Sku).HasMaxLength(80).HasColumnName("sku");
+            entity.Property(e => e.Name).HasMaxLength(120).HasColumnName("name");
+            entity.Property(e => e.Category).HasMaxLength(40).HasColumnName("category");
+            entity.Property(e => e.Price).HasColumnName("price");
+            entity.Property(e => e.IconEmoji).HasMaxLength(16).HasColumnName("icon_emoji");
+            entity.Property(e => e.PreviewUrl).HasColumnName("preview_url");
+            entity.Property(e => e.IsDefaultOwned).HasDefaultValue(false).HasColumnName("is_default_owned");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()").HasColumnName("created_at");
+        });
+
+        modelBuilder.Entity<CompanionInventory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("companion_inventories_pkey");
+            entity.ToTable("companion_inventories");
+            entity.HasIndex(e => new { e.UserId, e.CatalogItemId }, "companion_inventories_user_item_key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()").HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.CatalogItemId).HasColumnName("catalog_item_id");
+            entity.Property(e => e.IsEquipped).HasDefaultValue(false).HasColumnName("is_equipped");
+            entity.Property(e => e.AcquiredAt).HasDefaultValueSql("now()").HasColumnName("acquired_at");
+            entity.HasOne(d => d.User).WithMany(p => p.CompanionInventories)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("companion_inventories_user_id_fkey");
+            entity.HasOne(d => d.CatalogItem).WithMany()
+                .HasForeignKey(d => d.CatalogItemId)
+                .HasConstraintName("companion_inventories_catalog_item_id_fkey");
+        });
+
+        modelBuilder.Entity<CompanionMissionTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("companion_mission_templates_pkey");
+            entity.ToTable("companion_mission_templates");
+            entity.HasIndex(e => e.Code, "companion_mission_templates_code_key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()").HasColumnName("id");
+            entity.Property(e => e.Code).HasMaxLength(80).HasColumnName("code");
+            entity.Property(e => e.Title).HasMaxLength(160).HasColumnName("title");
+            entity.Property(e => e.Description).HasMaxLength(300).HasColumnName("description");
+            entity.Property(e => e.Category).HasMaxLength(20).HasColumnName("category");
+            entity.Property(e => e.TargetCount).HasColumnName("target_count");
+            entity.Property(e => e.RewardCoins).HasColumnName("reward_coins");
+            entity.Property(e => e.RewardXp).HasColumnName("reward_xp");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.IsActive).HasDefaultValue(true).HasColumnName("is_active");
+        });
+
+        modelBuilder.Entity<CompanionMissionProgress>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("companion_mission_progress_pkey");
+            entity.ToTable("companion_mission_progress");
+            entity.HasIndex(e => new { e.UserId, e.TemplateId, e.DateKey }, "companion_mission_progress_user_template_date_key").IsUnique();
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()").HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.TemplateId).HasColumnName("template_id");
+            entity.Property(e => e.DateKey).HasMaxLength(16).HasColumnName("date_key");
+            entity.Property(e => e.Progress).HasColumnName("progress");
+            entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()").HasColumnName("updated_at");
+            entity.HasOne(d => d.User).WithMany(p => p.CompanionMissionProgresses)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("companion_mission_progress_user_id_fkey");
+            entity.HasOne(d => d.Template).WithMany()
+                .HasForeignKey(d => d.TemplateId)
+                .HasConstraintName("companion_mission_progress_template_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

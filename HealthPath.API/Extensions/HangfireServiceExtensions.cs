@@ -35,18 +35,29 @@ public static class HangfireServiceExtensions
         }
     }
 
-    public static IServiceCollection AddHangfireServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddHangfireServices(
+        this IServiceCollection services,
+        string postgresConnection)
     {
         // 1. Đăng ký Hangfire Services sử dụng Database PostgreSQL làm Storage
         services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UsePostgreSqlStorage(options => 
-                options.UseNpgsqlConnection(configuration.GetConnectionString("DefaultConnection"))));
+            .UsePostgreSqlStorage(
+                bootstrap => bootstrap.UseNpgsqlConnection(postgresConnection),
+                new PostgreSqlStorageOptions
+                {
+                    DistributedLockTimeout = TimeSpan.FromMinutes(2),
+                    QueuePollInterval = TimeSpan.FromSeconds(60),
+                }));
 
-        // 2. Kích hoạt Background Job Server xử lý tác vụ
-        services.AddHangfireServer();
+        // 2. Ít worker hơn → ít giữ connection DB (dùng chung pool với EF Core)
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 1;
+            options.SchedulePollingInterval = TimeSpan.FromSeconds(60);
+        });
 
         return services;
     }
@@ -70,6 +81,35 @@ public static class HangfireServiceExtensions
             "miss-detection",
             job => job.ExecuteAsync(),
             "50 23 * * *",
+            new RecurringJobOptions { TimeZone = VietnamTimeZone }
+        );
+
+        // Nhắc check-in: 8:00 sáng và 20:00 tối (VN)
+        RecurringJob.AddOrUpdate<IDailyCheckinReminderJob>(
+            "daily-checkin-morning",
+            job => job.ExecuteAsync(),
+            "0 8 * * *",
+            new RecurringJobOptions { TimeZone = VietnamTimeZone }
+        );
+        RecurringJob.AddOrUpdate<IDailyCheckinReminderJob>(
+            "daily-checkin-evening",
+            job => job.ExecuteAsync(),
+            "0 20 * * *",
+            new RecurringJobOptions { TimeZone = VietnamTimeZone }
+        );
+
+        // Nhắc thói quen theo giờ lên lịch — mỗi 30 phút
+        RecurringJob.AddOrUpdate<IRoutineReminderJob>(
+            "routine-reminder",
+            job => job.ExecuteAsync(),
+            "*/30 * * * *",
+            new RecurringJobOptions { TimeZone = VietnamTimeZone }
+        );
+
+        RecurringJob.AddOrUpdate<ICompanionDecayJob>(
+            "companion-decay",
+            job => job.ExecuteAsync(),
+            "0 * * * *",
             new RecurringJobOptions { TimeZone = VietnamTimeZone }
         );
 

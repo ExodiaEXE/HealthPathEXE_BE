@@ -44,7 +44,7 @@ public class UserRoutineService : IUserRoutineService
             UserId = userId,
             RoutineId = dto.RoutineId,
             Status = "pending",
-            ScheduledAt = dto.ScheduledAt,
+            ScheduledAt = ToUtc(dto.ScheduledAt),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -137,8 +137,12 @@ public class UserRoutineService : IUserRoutineService
 
         if (date.HasValue)
         {
-            var dateValue = date.Value.Date;
-            query = query.Where(ur => ur.ScheduledAt != null && ur.ScheduledAt.Value.Date == dateValue);
+            var startUtc = DateTime.SpecifyKind(date.Value.Date, DateTimeKind.Utc);
+            var endUtc = startUtc.AddDays(1);
+            query = query.Where(ur =>
+                ur.ScheduledAt != null &&
+                ur.ScheduledAt >= startUtc &&
+                ur.ScheduledAt < endUtc);
         }
 
         var totalItems = await query.CountAsync();
@@ -250,6 +254,18 @@ public class UserRoutineService : IUserRoutineService
         await _context.SaveChangesAsync();
 
         return ApiResponse<object>.Ok(new object(), "Recurring template deleted successfully");
+    }
+
+    private static DateTime? ToUtc(DateTime? value)
+    {
+        if (!value.HasValue) return null;
+        var dt = value.Value;
+        return dt.Kind switch
+        {
+            DateTimeKind.Utc => dt,
+            DateTimeKind.Local => dt.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+        };
     }
 
     private static UserRoutineDto MapToDto(UserRoutine entity)

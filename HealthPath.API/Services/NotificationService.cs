@@ -18,15 +18,18 @@ public class NotificationService : INotificationService
     private readonly HealthpathDbContext _dbContext;
     private readonly IEnumerable<INotificationChannel> _channels;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IBackgroundJobDispatcher _backgroundJobs;
 
     public NotificationService(
         HealthpathDbContext dbContext,
         IEnumerable<INotificationChannel> channels,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        IBackgroundJobDispatcher backgroundJobs)
     {
         _dbContext = dbContext;
         _channels = channels;
         _logger = logger;
+        _backgroundJobs = backgroundJobs;
     }
 
     public async Task SendAsync(SendNotificationDto dto)
@@ -151,13 +154,9 @@ public class NotificationService : INotificationService
             }
             var delay = targetDateTime - localTime;
 
-            // Schedule delayed job via Hangfire
             foreach (var notif in savedNotifications)
             {
-                BackgroundJob.Schedule<NotificationService>(
-                    s => s.SendDirectAsync(notif.Id),
-                    delay
-                );
+                _backgroundJobs.ScheduleNotificationSend(notif.Id, delay);
             }
         }
         else
@@ -225,7 +224,7 @@ public class NotificationService : INotificationService
         Guid userId, bool? unreadOnly, int page, int pageSize)
     {
         var query = _dbContext.Notifications
-            .Where(n => n.UserId == userId && n.DeletedAt == null);
+            .Where(n => n.UserId == userId && n.DeletedAt == null && n.Channel == "in_app");
 
         if (unreadOnly == true)
         {
@@ -322,7 +321,7 @@ public class NotificationService : INotificationService
     public async Task<ApiResponse<UnreadCountDto>> GetUnreadCountAsync(Guid userId)
     {
         var count = await _dbContext.Notifications
-            .CountAsync(n => n.UserId == userId && !n.IsRead && n.DeletedAt == null);
+            .CountAsync(n => n.UserId == userId && !n.IsRead && n.DeletedAt == null && n.Channel == "in_app");
 
         return ApiResponse<UnreadCountDto>.Ok(new UnreadCountDto { UnreadCount = count });
     }

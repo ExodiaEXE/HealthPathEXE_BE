@@ -258,6 +258,71 @@ namespace HealthPath.Tests.Services
         }
 
         [Fact]
+        public async Task ChangePasswordAsync_ValidCredentials_UpdatesPassword()
+        {
+            var plainOld = "OldPass@1";
+            var plainNew = "NewPass@2";
+            using var context = DbContextFactory.Create();
+            var userId = Guid.NewGuid();
+            var user = new User
+            {
+                Id = userId,
+                FullName = "Password User",
+                Email = "password@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainOld),
+                IsActive = true,
+                IsVerified = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+
+            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+
+            var result = await service.ChangePasswordAsync(userId, new ChangePasswordDto
+            {
+                CurrentPassword = plainOld,
+                NewPassword = plainNew
+            });
+
+            result.Success.Should().BeTrue();
+            var userInDb = context.Users.First(u => u.Id == userId);
+            BCrypt.Net.BCrypt.Verify(plainNew, userInDb.PasswordHash).Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_WrongCurrentPassword_Fails()
+        {
+            using var context = DbContextFactory.Create();
+            var userId = Guid.NewGuid();
+            var user = new User
+            {
+                Id = userId,
+                FullName = "Password User",
+                Email = "password2@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("OldPass@1"),
+                IsActive = true,
+                IsVerified = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+
+            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+
+            var result = await service.ChangePasswordAsync(userId, new ChangePasswordDto
+            {
+                CurrentPassword = "WrongPass@1",
+                NewPassword = "NewPass@2"
+            });
+
+            result.Success.Should().BeFalse();
+            result.Message.Should().Contain("Mật khẩu hiện tại không đúng");
+        }
+
+        [Fact]
         public async Task UnlinkSocialAccountAsync_HasPassword_Succeeds()
         {
             // Arrange

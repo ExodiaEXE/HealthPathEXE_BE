@@ -15,10 +15,14 @@ namespace HealthPath.API.Controllers
     public class AudioTrackController : ControllerBase
     {
         private readonly IAudioTrackService _audioTrackService;
+        private readonly ICompanionService _companionService;
 
-        public AudioTrackController(IAudioTrackService audioTrackService)
+        public AudioTrackController(
+            IAudioTrackService audioTrackService,
+            ICompanionService companionService)
         {
             _audioTrackService = audioTrackService;
+            _companionService = companionService;
         }
 
         // --- Helper for consistent responses ---
@@ -212,6 +216,10 @@ namespace HealthPath.API.Controllers
 
             var userId = User.GetUserId();
             var response = await _audioTrackService.RecordPlayAsync(dto, userId);
+            if (response.Success)
+            {
+                await _companionService.ReportEventAsync(userId, "audio_listen");
+            }
             return HandleResponse(response);
         }
 

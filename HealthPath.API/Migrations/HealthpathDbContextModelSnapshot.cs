@@ -442,6 +442,219 @@ namespace HealthPath.API.Migrations
                     b.ToTable("chat_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("HealthPath.API.Models.CompanionCatalogItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("IconEmoji")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("icon_emoji");
+
+                    b.Property<bool>("IsDefaultOwned")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_default_owned");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PreviewUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("preview_url");
+
+                    b.Property<int>("Price")
+                        .HasColumnType("integer")
+                        .HasColumnName("price");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("sku");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("companion_catalog_items_pkey");
+
+                    b.HasIndex(new[] { "Sku" }, "companion_catalog_items_sku_key")
+                        .IsUnique();
+
+                    b.ToTable("companion_catalog_items", (string)null);
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.CompanionInventory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("AcquiredAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acquired_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<bool>("IsEquipped")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_equipped");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("companion_inventories_pkey");
+
+                    b.HasIndex("CatalogItemId");
+
+                    b.HasIndex(new[] { "UserId", "CatalogItemId" }, "companion_inventories_user_item_key")
+                        .IsUnique();
+
+                    b.ToTable("companion_inventories", (string)null);
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.CompanionMissionProgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("DateKey")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("date_key");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("integer")
+                        .HasColumnName("progress");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("companion_mission_progress_pkey");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex(new[] { "UserId", "TemplateId", "DateKey" }, "companion_mission_progress_user_template_date_key")
+                        .IsUnique();
+
+                    b.ToTable("companion_mission_progress", (string)null);
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.CompanionMissionTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("RewardCoins")
+                        .HasColumnType("integer")
+                        .HasColumnName("reward_coins");
+
+                    b.Property<int>("RewardXp")
+                        .HasColumnType("integer")
+                        .HasColumnName("reward_xp");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<int>("TargetCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_count");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("companion_mission_templates_pkey");
+
+                    b.HasIndex(new[] { "Code" }, "companion_mission_templates_code_key")
+                        .IsUnique();
+
+                    b.ToTable("companion_mission_templates", (string)null);
+                });
+
             modelBuilder.Entity("HealthPath.API.Models.DeviceToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -679,6 +892,51 @@ namespace HealthPath.API.Migrations
                         .HasFilter("(deleted_at IS NULL)");
 
                     b.ToTable("group_members", (string)null);
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.GroupTeamCheckin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CheckinDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checkin_date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("group_team_checkins_pkey");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex(new[] { "GroupId", "UserId", "CheckinDate" }, "group_team_checkins_group_user_date_key")
+                        .IsUnique()
+                        .HasFilter("(deleted_at IS NULL)");
+
+                    b.HasIndex(new[] { "GroupId" }, "idx_group_team_checkins_group")
+                        .HasFilter("(deleted_at IS NULL)");
+
+                    b.ToTable("group_team_checkins", (string)null);
                 });
 
             modelBuilder.Entity("HealthPath.API.Models.MoodCheckin", b =>
@@ -1481,6 +1739,104 @@ namespace HealthPath.API.Migrations
                     b.ToTable("user_audio_history", (string)null);
                 });
 
+            modelBuilder.Entity("HealthPath.API.Models.UserCompanion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("Coins")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100)
+                        .HasColumnName("coins");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("Energy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(90)
+                        .HasColumnName("energy");
+
+                    b.Property<string>("EquippedItemIds")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]")
+                        .HasColumnName("equipped_item_ids");
+
+                    b.Property<int>("Happiness")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(80)
+                        .HasColumnName("happiness");
+
+                    b.Property<int>("Hunger")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(70)
+                        .HasColumnName("hunger");
+
+                    b.Property<DateTime>("LastDecayAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_decay_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime?>("LastFeedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_feed_at");
+
+                    b.Property<DateTime?>("LastPetAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_pet_at");
+
+                    b.Property<int>("Level")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("level");
+
+                    b.Property<string>("RoomTheme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("cozy")
+                        .HasColumnName("room_theme");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<int>("Xp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("xp");
+
+                    b.HasKey("Id")
+                        .HasName("user_companions_pkey");
+
+                    b.HasIndex(new[] { "UserId" }, "user_companions_user_id_key")
+                        .IsUnique();
+
+                    b.ToTable("user_companions", (string)null);
+                });
+
             modelBuilder.Entity("HealthPath.API.Models.UserFavoriteTrack", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1846,6 +2202,48 @@ namespace HealthPath.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("HealthPath.API.Models.CompanionInventory", b =>
+                {
+                    b.HasOne("HealthPath.API.Models.CompanionCatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("companion_inventories_catalog_item_id_fkey");
+
+                    b.HasOne("HealthPath.API.Models.User", "User")
+                        .WithMany("CompanionInventories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("companion_inventories_user_id_fkey");
+
+                    b.Navigation("CatalogItem");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.CompanionMissionProgress", b =>
+                {
+                    b.HasOne("HealthPath.API.Models.CompanionMissionTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("companion_mission_progress_template_id_fkey");
+
+                    b.HasOne("HealthPath.API.Models.User", "User")
+                        .WithMany("CompanionMissionProgresses")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("companion_mission_progress_user_id_fkey");
+
+                    b.Navigation("Template");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("HealthPath.API.Models.DeviceToken", b =>
                 {
                     b.HasOne("HealthPath.API.Models.User", "User")
@@ -1897,6 +2295,27 @@ namespace HealthPath.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("group_members_user_id_fkey");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HealthPath.API.Models.GroupTeamCheckin", b =>
+                {
+                    b.HasOne("HealthPath.API.Models.Group", "Group")
+                        .WithMany("GroupTeamCheckins")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("group_team_checkins_group_id_fkey");
+
+                    b.HasOne("HealthPath.API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("group_team_checkins_user_id_fkey");
 
                     b.Navigation("Group");
 
@@ -2033,6 +2452,18 @@ namespace HealthPath.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("HealthPath.API.Models.UserCompanion", b =>
+                {
+                    b.HasOne("HealthPath.API.Models.User", "User")
+                        .WithOne("UserCompanion")
+                        .HasForeignKey("HealthPath.API.Models.UserCompanion", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("user_companions_user_id_fkey");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("HealthPath.API.Models.UserFavoriteTrack", b =>
                 {
                     b.HasOne("HealthPath.API.Models.AudioTrack", "Track")
@@ -2163,6 +2594,8 @@ namespace HealthPath.API.Migrations
                     b.Navigation("GroupChallenges");
 
                     b.Navigation("GroupMembers");
+
+                    b.Navigation("GroupTeamCheckins");
                 });
 
             modelBuilder.Entity("HealthPath.API.Models.GroupChallenge", b =>
@@ -2200,6 +2633,10 @@ namespace HealthPath.API.Migrations
 
                     b.Navigation("ChatSessions");
 
+                    b.Navigation("CompanionInventories");
+
+                    b.Navigation("CompanionMissionProgresses");
+
                     b.Navigation("DeviceTokens");
 
                     b.Navigation("FavoriteTracks");
@@ -2217,6 +2654,8 @@ namespace HealthPath.API.Migrations
                     b.Navigation("Routines");
 
                     b.Navigation("UserAudioHistories");
+
+                    b.Navigation("UserCompanion");
 
                     b.Navigation("UserRoleAssignedByNavigations");
 

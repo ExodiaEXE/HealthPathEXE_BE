@@ -11,8 +11,10 @@ namespace HealthPath.API.Services
 
         // Thêm 3 phương thức mới xử lý luồng OTP
         Task<ApiResponse<object>> VerifyRegisterOtpAsync(VerifyOtpDto request);
+        Task<ApiResponse<object>> ResendVerificationOtpAsync(ForgotPasswordDto request);
         Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordDto request);
         Task<ApiResponse<object>> ResetPasswordWithOtpAsync(ResetPasswordWithOtpDto request);
+        Task<ApiResponse<object>> ChangePasswordAsync(Guid userId, ChangePasswordDto request);
 
         // Social auth & linking
         Task<ApiResponse<AuthResponseDto>> SocialLoginAsync(SocialLoginDto request);

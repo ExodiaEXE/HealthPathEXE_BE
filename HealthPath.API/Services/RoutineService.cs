@@ -86,7 +86,10 @@ public class RoutineService : IRoutineService
         return ApiResponse<RoutineDto>.Ok(dto);
     }
 
-    public async Task<ApiResponse<RoutineDto>> CreateRoutineAsync(CreateRoutineDto dto, Guid currentUserId)
+    public async Task<ApiResponse<RoutineDto>> CreateRoutineAsync(
+        CreateRoutineDto dto,
+        Guid? createdBy,
+        bool isSystem = false)
     {
         var routine = new Routine
         {
@@ -97,10 +100,10 @@ public class RoutineService : IRoutineService
             DurationMinutes = dto.DurationMinutes,
             IsPremium = dto.IsPremium,
             ThumbnailUrl = dto.ThumbnailUrl,
-            CreatedBy = currentUserId,
+            CreatedBy = createdBy,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
-            IsSystem = false // Assuming user-created routines are not system routines by default
+            IsSystem = isSystem
         };
 
         _context.Routines.Add(routine);

@@ -24,8 +24,8 @@ namespace HealthPath.Tests.Services
             _fileStorageMock = new Mock<IFileStorageService>();
             _loggerMock = new Mock<ILogger<AudioTrackService>>();
 
-            // Setup default mock behavior for presigned URL generation
-            _fileStorageMock.Setup(f => f.GeneratePresignedDownloadUrlAsync(It.IsAny<string>(), It.IsAny<int>()))
+            // Setup default mock behavior for playback URL generation
+            _fileStorageMock.Setup(f => f.GetPlaybackUrlAsync(It.IsAny<string>(), It.IsAny<int>()))
                 .ReturnsAsync((string key, int expires) => $"https://mock-r2-download.com/{key}?expires={expires}");
         }
 
@@ -280,7 +280,7 @@ namespace HealthPath.Tests.Services
             response.Data!.StreamUrl.Should().Contain("calm.mp3");
             response.Data.StreamUrl.Should().Contain("expires=60");
 
-            _fileStorageMock.Verify(f => f.GeneratePresignedDownloadUrlAsync("audio/tracks/calm.mp3", 60), Times.Once);
+            _fileStorageMock.Verify(f => f.GetPlaybackUrlAsync("audio/tracks/calm.mp3", 60), Times.Once);
         }
 
         // ==========================================

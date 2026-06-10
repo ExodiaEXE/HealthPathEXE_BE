@@ -16,11 +16,16 @@ public class UserRoutineController : ControllerBase
 {
     private readonly IUserRoutineService _userRoutineService;
     private readonly IGamificationService _gamificationService;
+    private readonly ICompanionService _companionService;
 
-    public UserRoutineController(IUserRoutineService userRoutineService, IGamificationService gamificationService)
+    public UserRoutineController(
+        IUserRoutineService userRoutineService,
+        IGamificationService gamificationService,
+        ICompanionService companionService)
     {
         _userRoutineService = userRoutineService;
         _gamificationService = gamificationService;
+        _companionService = companionService;
     }
 
     [HttpPost("schedule")]
@@ -56,6 +61,8 @@ public class UserRoutineController : ControllerBase
         {
             return BadRequest(response);
         }
+        await _companionService.ReportEventAsync(userId, "routine_complete");
+        await _companionService.ReportEventAsync(userId, "weekly_routine_5");
         return Ok(response);
     }
 

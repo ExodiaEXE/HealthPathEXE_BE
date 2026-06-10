@@ -68,4 +68,10 @@ public partial class User
     public virtual ICollection<DeviceToken> DeviceTokens { get; set; } = new List<DeviceToken>();
 
     public virtual ICollection<UserFavoriteTrack> FavoriteTracks { get; set; } = new List<UserFavoriteTrack>();
+
+    public virtual UserCompanion? UserCompanion { get; set; }
+
+    public virtual ICollection<CompanionInventory> CompanionInventories { get; set; } = new List<CompanionInventory>();
+
+    public virtual ICollection<CompanionMissionProgress> CompanionMissionProgresses { get; set; } = new List<CompanionMissionProgress>();
 }

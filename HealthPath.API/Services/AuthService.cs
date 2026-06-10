@@ -10,7 +10,6 @@ using MimeKit;
 using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Hangfire; // BỔ SUNG: Khai báo thư viện Hangfire
 using System.Net.Http;
 using System.Net.Http.Json;
 
@@ -21,13 +20,18 @@ namespace HealthPath.API.Services
         private readonly HealthpathDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IBackgroundJobDispatcher _backgroundJobs;
 
-        // Tiêm DbContext, Configuration và HttpClientFactory để xử lý HTTP
-        public AuthService(HealthpathDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory)
+        public AuthService(
+            HealthpathDbContext context,
+            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory,
+            IBackgroundJobDispatcher backgroundJobs)
         {
             _context = context;
             _configuration = configuration;
             _httpClientFactory = httpClientFactory;
+            _backgroundJobs = backgroundJobs;
         }
 
         public async Task<ApiResponse<object>> RegisterAsync(RegisterDto request)
@@ -65,31 +69,22 @@ namespace HealthPath.API.Services
             newUser.OtpCode = otpCode;
             newUser.OtpExpiryTime = DateTime.UtcNow.AddMinutes(5);
 
-            // Khởi tạo quy trình Transaction bảo vệ dữ liệu
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
 
-                // Lưu chính thức vào DB trước để bảo toàn dữ liệu
-                await transaction.CommitAsync();
-
-                // SỬA TẠI ĐÂY: Ném tác vụ gửi email vào hàng đợi chạy ngầm của Hangfire
-                BackgroundJob.Enqueue(() => SendOtpEmailAsync(
+                _backgroundJobs.EnqueueOtpEmail(
                     newUser.Email,
                     newUser.FullName,
                     "Xác thực tài khoản HealthPath",
                     "MÃ KÍCH HOẠT TÀI KHOẢN",
-                    $"Cảm ơn bạn đã đăng ký tài khoản tại HealthPath. Mã OTP kích hoạt của bạn là: <strong style='font-size: 20px; color: #4CAF50; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút."
-                ));
+                    $"Cảm ơn bạn đã đăng ký tài khoản tại HealthPath. Mã OTP kích hoạt của bạn là: <strong style='font-size: 20px; color: #4CAF50; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút.");
 
-                // API kết thúc ngay lập tức trong 0.1 giây
                 return ApiResponse<object>.Ok(new { }, "Đăng ký thành công! Vui lòng kiểm tra email để lấy mã xác thực.");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 return ApiResponse<object>.Fail($"Hệ thống gặp sự cố khi lưu tài khoản. Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
             }
         }
@@ -179,6 +174,43 @@ namespace HealthPath.API.Services
             return ApiResponse<object>.Ok(new { }, "Xác thực và kích hoạt tài khoản thành công!");
         }
 
+        public async Task<ApiResponse<object>> ResendVerificationOtpAsync(ForgotPasswordDto request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email && u.DeletedAt == null);
+            if (user == null)
+            {
+                return ApiResponse<object>.Fail("Email không tồn tại trong hệ thống!", ErrorCode.USER_NOT_FOUND);
+            }
+
+            if (user.IsVerified)
+            {
+                return ApiResponse<object>.Fail("Tài khoản này đã được xác thực. Bạn có thể đăng nhập ngay.", ErrorCode.VALIDATION_ERROR);
+            }
+
+            string otpCode = new Random().Next(100000, 999999).ToString();
+            user.OtpCode = otpCode;
+            user.OtpExpiryTime = DateTime.UtcNow.AddMinutes(5);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+
+                _backgroundJobs.EnqueueOtpEmail(
+                    user.Email,
+                    user.FullName,
+                    "Xác thực tài khoản HealthPath",
+                    "MÃ KÍCH HOẠT TÀI KHOẢN",
+                    $"Mã OTP kích hoạt tài khoản của bạn là: <strong style='font-size: 20px; color: #4CAF50; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút.");
+
+                return ApiResponse<object>.Ok(new { }, "Đã gửi mã xác thực tới email của bạn. Vui lòng kiểm tra hộp thư.");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<object>.Fail($"Hệ thống gặp sự cố. Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
+            }
+        }
+
         public async Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordDto request)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email && u.DeletedAt == null);
@@ -192,28 +224,21 @@ namespace HealthPath.API.Services
             user.OtpExpiryTime = DateTime.UtcNow.AddMinutes(5);
             user.UpdatedAt = DateTime.UtcNow;
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 await _context.SaveChangesAsync();
 
-                // Lưu thành công trạng thái OTP mới xuống DB
-                await transaction.CommitAsync();
-
-                // SỬA TẠI ĐÂY: Ném tác vụ gửi email vào hàng đợi chạy ngầm của Hangfire
-                BackgroundJob.Enqueue(() => SendOtpEmailAsync(
+                _backgroundJobs.EnqueueOtpEmail(
                     user.Email,
                     user.FullName,
                     "Khôi phục mật khẩu HealthPath",
                     "MÃ OTP ĐẶT LẠI MẬT KHẨU",
-                    $"Bạn đã yêu cầu đặt lại mật khẩu. Mã OTP của bạn là: <strong style='font-size: 20px; color: #f44336; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút. Nếu không phải bạn yêu cầu, vui lòng bỏ qua email này."
-                ));
+                    $"Bạn đã yêu cầu đặt lại mật khẩu. Mã OTP của bạn là: <strong style='font-size: 20px; color: #f44336; letter-spacing: 2px;'>{otpCode}</strong>. Mã này có hiệu lực trong 5 phút. Nếu không phải bạn yêu cầu, vui lòng bỏ qua email này.");
 
                 return ApiResponse<object>.Ok(new { }, "Yêu cầu thành công! Hệ thống đang gửi mã khôi phục mật khẩu về email của bạn.");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 return ApiResponse<object>.Fail($"Hệ thống gặp sự cố. Chi tiết lỗi: {ex.Message}", ErrorCode.INTERNAL_ERROR);
             }
         }
@@ -243,6 +268,40 @@ namespace HealthPath.API.Services
 
             await _context.SaveChangesAsync();
             return ApiResponse<object>.Ok(new { }, "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.");
+        }
+
+        public async Task<ApiResponse<object>> ChangePasswordAsync(Guid userId, ChangePasswordDto request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
+            if (user == null)
+            {
+                return ApiResponse<object>.Fail("Người dùng không tồn tại!", ErrorCode.USER_NOT_FOUND);
+            }
+
+            if (string.IsNullOrWhiteSpace(user.PasswordHash))
+            {
+                return ApiResponse<object>.Fail(
+                    "Tài khoản đăng nhập qua mạng xã hội không thể đổi mật khẩu tại đây.",
+                    ErrorCode.FORBIDDEN);
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                return ApiResponse<object>.Fail("Mật khẩu hiện tại không đúng.", ErrorCode.INVALID_CREDENTIALS);
+            }
+
+            if (request.CurrentPassword == request.NewPassword)
+            {
+                return ApiResponse<object>.Fail(
+                    "Mật khẩu mới phải khác mật khẩu hiện tại.",
+                    ErrorCode.VALIDATION_ERROR);
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return ApiResponse<object>.Ok(new { }, "Đổi mật khẩu thành công!");
         }
 
         // --- HÀM GỬI EMAIL CHẠY NGẦM ---

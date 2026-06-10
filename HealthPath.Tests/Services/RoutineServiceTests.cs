@@ -102,7 +102,7 @@ namespace HealthPath.Tests.Services
             };
 
             // Act
-            var result = await service.CreateRoutineAsync(dto, currentUserId);
+            var result = await service.CreateRoutineAsync(dto, currentUserId, isSystem: false);
 
             // Assert
             result.Success.Should().BeTrue();

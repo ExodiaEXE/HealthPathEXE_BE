@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -143,6 +144,197 @@ public class FileController : ControllerBase
         return Ok(ApiResponse<FileUploadResultDto>.Ok(result));
     }
 
+    /// <summary>
+    /// Liệt kê các file MP3 đã upload (Admin). Đánh dấu file nào đã đăng ký vào AudioTrack.
+    /// </summary>
+    [HttpGet("audio/tracks")]
+    public async Task<IActionResult> ListUploadedAudioTracks()
+    {
+        if (!await CanPerformAdminFileOpsAsync())
+        {
+            return StatusCode(403, ApiResponse<object>.Fail("Chỉ Admin mới có quyền thực hiện thao tác này", ErrorCode.FORBIDDEN));
+        }
+
+        var files = await _fileStorageService.ListFilesAsync("audio/tracks");
+        var registeredTracks = await _dbContext.AudioTracks
+            .Where(t => t.DeletedAt == null)
+            .Select(t => new { t.Id, t.Title, t.FileUrl })
+            .ToListAsync();
+
+        var trackByKey = registeredTracks
+            .GroupBy(t => NormalizeFileKey(t.FileUrl))
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var result = files.Select(file =>
+        {
+            var normalizedKey = NormalizeFileKey(file.FileKey);
+            trackByKey.TryGetValue(normalizedKey, out var track);
+
+            return new StoredAudioFileDto
+            {
+                FileKey = file.FileKey,
+                Url = file.Url,
+                SizeBytes = file.SizeBytes,
+                UploadedAt = file.LastModified,
+                IsRegistered = track != null,
+                TrackId = track?.Id,
+                TrackTitle = track?.Title
+            };
+        }).ToList();
+
+        return Ok(ApiResponse<List<StoredAudioFileDto>>.Ok(result));
+    }
+
+    /// <summary>
+    /// Liệt kê các ảnh bìa audio đã upload (Admin).
+    /// </summary>
+    [HttpGet("audio/covers")]
+    public async Task<IActionResult> ListUploadedAudioCovers()
+    {
+        if (!await CanPerformAdminFileOpsAsync())
+        {
+            return StatusCode(403, ApiResponse<object>.Fail("Chỉ Admin mới có quyền thực hiện thao tác này", ErrorCode.FORBIDDEN));
+        }
+
+        var files = await _fileStorageService.ListFilesAsync("audio/covers");
+        var result = files.Select(file => new StoredAudioFileDto
+        {
+            FileKey = file.FileKey,
+            Url = file.Url,
+            SizeBytes = file.SizeBytes,
+            UploadedAt = file.LastModified,
+            IsRegistered = false
+        }).ToList();
+
+        return Ok(ApiResponse<List<StoredAudioFileDto>>.Ok(result));
+    }
+
+    /// <summary>
+    /// Hướng dẫn đăng ký bài hát qua POST /api/AudioTrack sau khi upload file (Admin).
+    /// Truyền fileKey/coverUrl để nhận body mẫu đã điền sẵn.
+    /// </summary>
+    [HttpGet("audio/registration-info")]
+    public async Task<IActionResult> GetAudioTrackRegistrationInfo(
+        [FromQuery] string? fileKey,
+        [FromQuery] string? coverUrl)
+    {
+        if (!await CanPerformAdminFileOpsAsync())
+        {
+            return StatusCode(403, ApiResponse<object>.Fail("Chỉ Admin mới có quyền thực hiện thao tác này", ErrorCode.FORBIDDEN));
+        }
+
+        var categories = await _dbContext.AudioCategories
+            .Where(c => c.IsActive)
+            .OrderBy(c => c.SortOrder)
+            .Select(c => new AudioCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                IconUrl = c.IconUrl,
+                IsActive = c.IsActive,
+                SortOrder = c.SortOrder
+            })
+            .ToListAsync();
+
+        var normalizedFileKey = string.IsNullOrWhiteSpace(fileKey) ? null : NormalizeFileKey(fileKey);
+        var normalizedCoverUrl = string.IsNullOrWhiteSpace(coverUrl) ? null : coverUrl.Trim();
+
+        var info = new AudioTrackRegistrationInfoDto
+        {
+            CreateTrackEndpoint = "POST /api/AudioTrack",
+            Steps = new List<string>
+            {
+                "1. POST /api/File/audio/track — upload file MP3, lấy fileKey từ response",
+                "2. POST /api/File/audio/cover — upload ảnh bìa (tuỳ chọn), lấy url từ response",
+                "3. GET /api/File/audio/tracks — xem danh sách file đã upload và trạng thái đăng ký",
+                "4. GET /api/File/audio/registration-info?fileKey=...&coverUrl=... — lấy body mẫu cho bước 5",
+                "5. POST /api/AudioTrack — đăng ký bài hát với JSON body"
+            },
+            Categories = categories,
+            Fields = new List<AudioTrackRegistrationFieldDto>
+            {
+                new()
+                {
+                    Name = "title",
+                    Type = "string",
+                    Required = true,
+                    Description = "Tên bài hát hiển thị trên app",
+                    Example = "Tiếng mưa tĩnh lặng"
+                },
+                new()
+                {
+                    Name = "artist",
+                    Type = "string",
+                    Required = false,
+                    Description = "Tên nghệ sĩ hoặc nguồn âm thanh",
+                    Example = "Âm thanh thiên nhiên"
+                },
+                new()
+                {
+                    Name = "studio",
+                    Type = "string",
+                    Required = false,
+                    Description = "Studio hoặc nhãn phát hành",
+                    Example = "HealthPath Audio"
+                },
+                new()
+                {
+                    Name = "categoryId",
+                    Type = "guid",
+                    Required = true,
+                    Description = "ID danh mục — lấy từ trường categories trong response này",
+                    Example = categories.FirstOrDefault()?.Id
+                },
+                new()
+                {
+                    Name = "durationSeconds",
+                    Type = "int",
+                    Required = true,
+                    Description = "Thời lượng bài hát tính bằng giây (1–36000)",
+                    Example = 330
+                },
+                new()
+                {
+                    Name = "fileUrl",
+                    Type = "string",
+                    Required = true,
+                    Description = "Dùng fileKey từ POST /api/File/audio/track (KHÔNG dùng full URL)",
+                    Example = normalizedFileKey ?? "audio/tracks/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.mp3"
+                },
+                new()
+                {
+                    Name = "coverUrl",
+                    Type = "string",
+                    Required = false,
+                    Description = "URL ảnh bìa từ POST /api/File/audio/cover (dùng trường url)",
+                    Example = normalizedCoverUrl ?? "https://pub-r2.example.com/audio/covers/xxxxxxxx.webp"
+                },
+                new()
+                {
+                    Name = "isPremium",
+                    Type = "bool",
+                    Required = false,
+                    Description = "true nếu chỉ user Premium được nghe",
+                    Example = false
+                }
+            },
+            SuggestedBody = new CreateAudioTrackDto
+            {
+                Title = "Tên bài hát",
+                Artist = "Tên nghệ sĩ",
+                Studio = "HealthPath Audio",
+                CategoryId = categories.FirstOrDefault()?.Id ?? Guid.Empty,
+                DurationSeconds = 0,
+                FileUrl = normalizedFileKey ?? string.Empty,
+                CoverUrl = normalizedCoverUrl,
+                IsPremium = false
+            }
+        };
+
+        return Ok(ApiResponse<AudioTrackRegistrationInfoDto>.Ok(info));
+    }
+
     [HttpPost("audio/track")]
     public async Task<IActionResult> UploadAudioTrack(IFormFile file)
     {
@@ -225,5 +417,39 @@ public class FileController : ControllerBase
             return uri.AbsolutePath.TrimStart('/');
         }
         return url.TrimStart('/');
+    }
+
+    private static string NormalizeFileKey(string fileUrlOrKey)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrlOrKey))
+        {
+            return string.Empty;
+        }
+
+        var value = fileUrlOrKey.Trim();
+        if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(value);
+            value = uri.AbsolutePath.TrimStart('/');
+        }
+
+        return value.TrimStart('/');
+    }
+
+    private async Task<bool> CanPerformAdminFileOpsAsync()
+    {
+        // Admin portal: JWT có claim IsAdmin=true (bảng admins, không có trong user_roles)
+        if (User.IsAdminToken())
+        {
+            return true;
+        }
+
+        var userId = User.GetUserId();
+        return await _dbContext.UserRoles
+            .Include(ur => ur.Role)
+            .AnyAsync(ur => ur.UserId == userId
+                         && ur.Role.Name.ToLower() == "admin"
+                         && ur.DeletedAt == null);
     }
 }

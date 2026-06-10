@@ -7,12 +7,13 @@ namespace HealthPath.API.Extensions
     {
         public static Guid GetUserId(this ClaimsPrincipal user)
         {
-            var value = user.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                        ?? user.FindFirst("sub")?.Value;
+            // User JWT dùng "sub"; admin JWT (.NET) thường serialize NameIdentifier thành "nameid"
+            var value = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? user.FindFirst("sub")?.Value
+                        ?? user.FindFirst("nameid")?.Value;
 
-            // Nếu lọt qua [Authorize] mà vẫn không có sub (lỗi cấu hình token) thì ném ra ngoại lệ luôn
             if (string.IsNullOrEmpty(value))
-                throw new UnauthorizedAccessException("Token hợp lệ nhưng không chứa thông tin định danh (Sub/NameIdentifier)!");
+                throw new UnauthorizedAccessException("Token hợp lệ nhưng không chứa thông tin định danh (sub/nameid)!");
 
             return Guid.Parse(value);
         }

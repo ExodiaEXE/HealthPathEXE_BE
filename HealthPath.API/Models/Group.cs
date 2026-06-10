@@ -31,5 +31,7 @@ public partial class Group
 
     public virtual ICollection<GroupMember> GroupMembers { get; set; } = new List<GroupMember>();
 
+    public virtual ICollection<GroupTeamCheckin> GroupTeamCheckins { get; set; } = new List<GroupTeamCheckin>();
+
     public virtual User Owner { get; set; } = null!;
 }

@@ -9,5 +9,8 @@ public interface IRoutineService
 {
     Task<ApiResponse<PageResponse<RoutineDto>>> GetRoutinesAsync(string? category, string? difficulty, int page, int pageSize);
     Task<ApiResponse<RoutineDto>> GetRoutineByIdAsync(Guid id);
-    Task<ApiResponse<RoutineDto>> CreateRoutineAsync(CreateRoutineDto dto, Guid currentUserId);
+    Task<ApiResponse<RoutineDto>> CreateRoutineAsync(
+        CreateRoutineDto dto,
+        Guid? createdBy,
+        bool isSystem = false);
 }

@@ -46,8 +46,15 @@ public class RoutineController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRoutine([FromBody] CreateRoutineDto dto)
     {
+        // Admin token → routine hệ thống (CreatedBy null). User token → routine cá nhân.
+        if (User.IsAdminToken())
+        {
+            var response = await _routineService.CreateRoutineAsync(dto, createdBy: null, isSystem: true);
+            return Ok(response);
+        }
+
         var userId = User.GetUserId();
-        var response = await _routineService.CreateRoutineAsync(dto, userId);
-        return Ok(response);
+        var userResponse = await _routineService.CreateRoutineAsync(dto, createdBy: userId, isSystem: false);
+        return Ok(userResponse);
     }
 }

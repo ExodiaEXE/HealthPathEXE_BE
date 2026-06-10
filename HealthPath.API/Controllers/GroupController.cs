@@ -15,10 +15,12 @@ namespace HealthPath.API.Controllers
     public class GroupController : ControllerBase
     {
         private readonly IGroupService _groupService;
+        private readonly ICompanionService _companionService;
 
-        public GroupController(IGroupService groupService)
+        public GroupController(IGroupService groupService, ICompanionService companionService)
         {
             _groupService = groupService;
+            _companionService = companionService;
         }
 
         [HttpPost]
@@ -71,6 +73,58 @@ namespace HealthPath.API.Controllers
             var userId = User.GetUserId();
             var result = await _groupService.JoinGroupAsync(id, userId);
             if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpGet("public")]
+        public async Task<IActionResult> GetPublicGroups([FromQuery] string? search)
+        {
+            var userId = User.GetUserId();
+            var result = await _groupService.GetPublicGroupsAsync(userId, search);
+            return Ok(result);
+        }
+
+        [HttpGet("{id}/members")]
+        public async Task<IActionResult> GetMembers(Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _groupService.GetGroupMembersAsync(id, userId);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("join-by-invite")]
+        public async Task<IActionResult> JoinByInviteCode([FromBody] JoinGroupByInviteCodeDto dto)
+        {
+            var userId = User.GetUserId();
+            var result = await _groupService.JoinGroupByInviteCodeAsync(userId, dto);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/leave")]
+        public async Task<IActionResult> Leave(Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _groupService.LeaveGroupAsync(id, userId);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/check-in")]
+        public async Task<IActionResult> CheckIn(Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _groupService.CheckInGroupAsync(id, userId);
+            if (!result.Success) return BadRequest(result);
+            try
+            {
+                await _companionService.ReportEventAsync(userId, "group_checkin");
+            }
+            catch
+            {
+                // Điểm danh đã lưu — không fail request vì companion mission.
+            }
             return Ok(result);
         }
     }

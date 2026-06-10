@@ -9,10 +9,15 @@ using System.Text;
 using HealthPath.API.Extensions;
 using dotenv.net;
 
-// Load environment variables from .env if present
-DotEnv.Fluent()
-    .WithProbeForEnv(probeLevelsToSearch: 6)
-    .Load();
+// Load secrets from .env in project root (env vars override appsettings)
+var envFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+if (File.Exists(envFile))
+{
+    DotEnv.Fluent()
+        .WithEnvFiles(envFile)
+        .WithoutProbeForEnv()
+        .Load();
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,26 +45,50 @@ builder.Services.AddControllers()
 // Register HttpClient for external API calls (e.g., Google/Facebook token verification)
 builder.Services.AddHttpClient();
 
-// 1. Cấu hình Database PostgreSQL
+// 1. Cấu hình Database PostgreSQL (giới hạn pool — Supabase session mode ~15 conn)
+var postgresConnection = DatabaseConnectionExtensions.NormalizePostgresConnection(
+    builder.Configuration.GetConnectionString("DefaultConnection"));
+
 builder.Services.AddDbContext<HealthpathDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(postgresConnection, npgsql =>
+        npgsql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(4),
+            errorCodesToAdd:
+            [
+                "57P01", // admin_shutdown
+                "53300", // too_many_connections
+                "08006", // connection_failure
+                "08001", // sqlclient_unable_to_establish_sqlconnection
+                "08003", // connection_does_not_exist
+            ])));
 
 // 2. Đăng ký các Service (Dependency Injection)
 builder.Services.AddScoped<IUserService, SqlUserService>(); // Giữ nguyên Mock, sau này viết SqlUserService thì đổi chữ Mock thành Sql là xong
-builder.Services.AddScoped<IAuthService, AuthService>();     // <-- MỚI THÊM: Đăng ký Service IAM
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
 builder.Services.AddScoped<IRoutineService, RoutineService>();
 builder.Services.AddScoped<IUserRoutineService, UserRoutineService>();
 builder.Services.AddScoped<IGamificationService, GamificationService>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRecurringRoutineJob, HealthPath.API.BackgroundJobs.RecurringRoutineJob>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IMissDetectionJob, HealthPath.API.BackgroundJobs.MissDetectionJob>();
+builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IDailyCheckinReminderJob, HealthPath.API.BackgroundJobs.DailyCheckinReminderJob>();
+builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRoutineReminderJob, HealthPath.API.BackgroundJobs.RoutineReminderJob>();
+builder.Services.AddScoped<ICompanionService, CompanionService>();
+builder.Services.Configure<HealthPath.API.Options.CompanionAssetsOptions>(
+    builder.Configuration.GetSection(HealthPath.API.Options.CompanionAssetsOptions.SectionName));
 builder.Services.AddScoped<IMoodCheckinService, MoodCheckinService>();
+builder.Services.AddScoped<HealthPath.API.BackgroundJobs.ICompanionDecayJob, HealthPath.API.BackgroundJobs.CompanionDecayJob>();
 builder.Services.AddScoped<IGroupChallengeService, GroupChallengeService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 
 // 5. Đăng ký các dịch vụ bổ sung qua Extension Methods (Notification, File Storage, Hangfire)
-builder.Services.AddNotificationServices();
+builder.Services.AddNotificationServices(builder.Configuration);
 builder.Services.AddFileStorageServices(builder.Configuration);
-builder.Services.AddHangfireServices(builder.Configuration);
+var hangfireConnection =
+    DatabaseConnectionExtensions.ResolveHangfireConnection(builder.Configuration);
+builder.Services.AddHangfireServices(hangfireConnection);
+builder.Services.AddSingleton<IBackgroundJobDispatcher, HangfireBackgroundJobDispatcher>();
 builder.Services.AddAudioServices();
 builder.Services.AddSubscriptionServices();
 builder.Services.AddAdminServices();
@@ -153,6 +182,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 // Áp dụng EF migrations (baseline DB scaffold cũ nếu cần), rồi seed admin
 await app.ApplyMigrationsAsync();
 await app.SeedDefaultAdminAsync();
+await app.SeedDefaultRoutinesAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -172,7 +202,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<HealthPath.API.Services.Hubs.NotificationHub>("/hubs/notification");
 
-// 6. Kích hoạt Hangfire Dashboard & các Recurring Jobs qua Extension Method
 app.UseHangfireJobs();
 
 app.Run();

@@ -5,7 +5,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using HealthPath.API.Options;
 
@@ -190,6 +192,29 @@ public class CloudflareR2Service : IFileStorageService
         }
     }
 
+    public Task<string> GetPlaybackUrlAsync(string fileUrlOrKey, int expiresInMinutes = 60)
+    {
+        var fileKey = NormalizeStorageKey(fileUrlOrKey);
+
+        if (_isLocalFallback)
+        {
+            var cleanKey = fileKey.TrimStart('/');
+            if (cleanKey.StartsWith("uploads/"))
+            {
+                return Task.FromResult($"/{cleanKey}");
+            }
+            return Task.FromResult($"/uploads/{cleanKey}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_options.PublicDomain))
+        {
+            var publicUrl = $"{GetPublicDomain()}/{fileKey}";
+            return Task.FromResult(publicUrl);
+        }
+
+        return GeneratePresignedDownloadUrlAsync(fileKey, expiresInMinutes);
+    }
+
     public Task<string> GeneratePresignedDownloadUrlAsync(string fileKey, int expiresInMinutes = 60)
     {
         if (_isLocalFallback)
@@ -223,5 +248,111 @@ public class CloudflareR2Service : IFileStorageService
             _logger.LogError(ex, "Failed to generate pre-signed download URL for key: {Key}", fileKey);
             throw;
         }
+    }
+
+    public async Task<List<StoredFileInfo>> ListFilesAsync(string folderPrefix)
+    {
+        var normalizedPrefix = folderPrefix.Trim('/');
+
+        if (_isLocalFallback)
+        {
+            var folder = Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", normalizedPrefix);
+            if (!Directory.Exists(folder))
+            {
+                return new List<StoredFileInfo>();
+            }
+
+            return Directory.GetFiles(folder)
+                .Select(filePath =>
+                {
+                    var fileName = Path.GetFileName(filePath);
+                    var fileKey = $"{normalizedPrefix}/{fileName}";
+                    var fileInfo = new FileInfo(filePath);
+                    return new StoredFileInfo
+                    {
+                        FileKey = fileKey,
+                        Url = $"/uploads/{fileKey}",
+                        SizeBytes = fileInfo.Length,
+                        LastModified = fileInfo.LastWriteTimeUtc
+                    };
+                })
+                .OrderByDescending(f => f.LastModified)
+                .ToList();
+        }
+
+        var results = new List<StoredFileInfo>();
+        var publicDomain = GetPublicDomain();
+
+        try
+        {
+            using var client = CreateS3Client();
+            string? continuationToken = null;
+
+            do
+            {
+                var request = new ListObjectsV2Request
+                {
+                    BucketName = _options.BucketName,
+                    Prefix = $"{normalizedPrefix}/",
+                    ContinuationToken = continuationToken
+                };
+
+                var response = await client.ListObjectsV2Async(request);
+
+                foreach (var obj in response.S3Objects)
+                {
+                    if (obj.Key.EndsWith('/'))
+                    {
+                        continue;
+                    }
+
+                    results.Add(new StoredFileInfo
+                    {
+                        FileKey = obj.Key,
+                        Url = $"{publicDomain}/{obj.Key}",
+                        SizeBytes = obj.Size ?? 0,
+                        LastModified = obj.LastModified
+                    });
+                }
+
+                continuationToken = response.IsTruncated == true ? response.NextContinuationToken : null;
+            } while (continuationToken != null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to list files with prefix: {Prefix}", normalizedPrefix);
+            throw;
+        }
+
+        return results.OrderByDescending(f => f.LastModified).ToList();
+    }
+
+    private string GetPublicDomain()
+    {
+        var domain = _options.PublicDomain.TrimEnd('/');
+        if (!domain.StartsWith("http://") && !domain.StartsWith("https://"))
+        {
+            domain = "https://" + domain;
+        }
+
+        return domain;
+    }
+
+    private static string NormalizeStorageKey(string fileUrlOrKey)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrlOrKey))
+        {
+            return string.Empty;
+        }
+
+        var value = fileUrlOrKey.Trim();
+        if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(value);
+            value = uri.AbsolutePath.TrimStart('/');
+        }
+
+        return value.TrimStart('/');
     }
 }

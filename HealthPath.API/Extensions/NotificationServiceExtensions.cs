@@ -1,24 +1,48 @@
-using Microsoft.Extensions.DependencyInjection;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using HealthPath.API.Services;
 using HealthPath.API.Services.Channels;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HealthPath.API.Extensions;
 
 public static class NotificationServiceExtensions
 {
-    public static IServiceCollection AddNotificationServices(this IServiceCollection services)
+    public static IServiceCollection AddNotificationServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        // 1. Đăng ký Real-time SignalR
+        InitializeFirebaseIfConfigured(configuration);
+
         services.AddSignalR();
 
-        // 2. Đăng ký các kênh truyền tải thông báo (Notification Channels)
         services.AddScoped<INotificationChannel, InAppChannel>();
         services.AddScoped<INotificationChannel, PushChannel>();
         services.AddScoped<INotificationChannel, EmailChannel>();
 
-        // 3. Đăng ký Dịch vụ thông báo cốt lõi (Core Notification Service)
-        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<NotificationService>();
+        services.AddScoped<INotificationService>(sp => sp.GetRequiredService<NotificationService>());
 
         return services;
+    }
+
+    static void InitializeFirebaseIfConfigured(IConfiguration configuration)
+    {
+        if (FirebaseApp.DefaultInstance != null) return;
+
+        var credentialPath = configuration["Firebase:CredentialPath"];
+        if (string.IsNullOrWhiteSpace(credentialPath)) return;
+
+        var fullPath = Path.IsPathRooted(credentialPath)
+            ? credentialPath
+            : Path.Combine(Directory.GetCurrentDirectory(), credentialPath);
+
+        if (!File.Exists(fullPath)) return;
+
+        FirebaseApp.Create(new AppOptions
+        {
+            Credential = GoogleCredential.FromFile(fullPath),
+        });
     }
 }

@@ -30,10 +30,15 @@ public class AudioTrackService : IAudioTrackService
 
     private async Task<bool> IsAdminAsync(Guid userId)
     {
+        if (await _dbContext.Admins.AnyAsync(a => a.Id == userId && a.IsActive))
+        {
+            return true;
+        }
+
         return await _dbContext.UserRoles
             .Include(ur => ur.Role)
-            .AnyAsync(ur => ur.UserId == userId 
-                         && ur.Role.Name.ToLower() == "admin" 
+            .AnyAsync(ur => ur.UserId == userId
+                         && ur.Role.Name.ToLower() == "admin"
                          && ur.DeletedAt == null);
     }
 
@@ -188,8 +193,8 @@ public class AudioTrackService : IAudioTrackService
             return ApiResponse<AudioStreamUrlDto>.Fail("Bài hát này yêu cầu tài khoản Premium", ErrorCode.PREMIUM_REQUIRED);
         }
 
-        // Sinh Presigned GET URL sống 60 phút
-        var streamUrl = await _fileStorageService.GeneratePresignedDownloadUrlAsync(track.FileUrl, 60);
+        // URL phát nhạc: ưu tiên public CDN (R2 pub domain), fallback presigned
+        var streamUrl = await _fileStorageService.GetPlaybackUrlAsync(track.FileUrl, 60);
 
         var result = new AudioStreamUrlDto
         {
@@ -218,6 +223,10 @@ public class AudioTrackService : IAudioTrackService
             return ApiResponse<AudioTrackDto>.Fail("Danh mục không tồn tại hoặc đã bị tắt", ErrorCode.AUDIO_CATEGORY_INVALID);
         }
 
+        var uploadedBy = await _dbContext.Users.AnyAsync(u => u.Id == adminUserId)
+            ? adminUserId
+            : (Guid?)null;
+
         var track = new AudioTrack
         {
             Title = dto.Title,
@@ -230,7 +239,7 @@ public class AudioTrackService : IAudioTrackService
             IsPremium = dto.IsPremium,
             IsActive = true,
             PlayCount = 0,
-            UploadedBy = adminUserId,
+            UploadedBy = uploadedBy,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

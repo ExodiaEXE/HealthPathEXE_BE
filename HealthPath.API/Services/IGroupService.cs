@@ -14,5 +14,10 @@ namespace HealthPath.API.Services
         Task<ApiResponse<GroupDto>> UpdateGroupAsync(Guid id, Guid userId, UpdateGroupDto dto);
         Task<ApiResponse<object>> DeleteGroupAsync(Guid id, Guid userId);
         Task<ApiResponse<object>> JoinGroupAsync(Guid id, Guid userId);
+        Task<ApiResponse<List<GroupDto>>> GetPublicGroupsAsync(Guid userId, string? search);
+        Task<ApiResponse<List<GroupMemberDto>>> GetGroupMembersAsync(Guid groupId, Guid userId);
+        Task<ApiResponse<GroupDto>> JoinGroupByInviteCodeAsync(Guid userId, JoinGroupByInviteCodeDto dto);
+        Task<ApiResponse<LeaveGroupResultDto>> LeaveGroupAsync(Guid groupId, Guid userId);
+        Task<ApiResponse<object>> CheckInGroupAsync(Guid groupId, Guid userId);
     }
 }
