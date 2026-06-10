@@ -77,6 +77,8 @@ builder.Services.AddScoped<HealthPath.API.BackgroundJobs.IRoutineReminderJob, He
 builder.Services.AddScoped<ICompanionService, CompanionService>();
 builder.Services.Configure<HealthPath.API.Options.CompanionAssetsOptions>(
     builder.Configuration.GetSection(HealthPath.API.Options.CompanionAssetsOptions.SectionName));
+builder.Services.Configure<HealthPath.API.Options.SocialAuthOptions>(
+    builder.Configuration.GetSection(HealthPath.API.Options.SocialAuthOptions.SectionName));
 builder.Services.AddScoped<IMoodCheckinService, MoodCheckinService>();
 builder.Services.AddScoped<HealthPath.API.BackgroundJobs.ICompanionDecayJob, HealthPath.API.BackgroundJobs.CompanionDecayJob>();
 builder.Services.AddScoped<IGroupChallengeService, GroupChallengeService>();
@@ -183,6 +185,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 await app.ApplyMigrationsAsync();
 await app.SeedDefaultAdminAsync();
 await app.SeedDefaultRoutinesAsync();
+await app.SeedDefaultSubscriptionPlansAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

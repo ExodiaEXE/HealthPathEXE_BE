@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using HealthPath.API.Common;
 using HealthPath.API.Models;
+using HealthPath.API.Options;
 using HealthPath.API.Services;
 using HealthPath.Tests.Helpers;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -17,6 +19,8 @@ namespace HealthPath.Tests.Services
     {
         private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
+        private readonly Mock<IBackgroundJobDispatcher> _mockBackgroundJobs;
+        private readonly IOptions<SocialAuthOptions> _socialAuthOptions;
 
         public AuthServiceTests()
         {
@@ -30,14 +34,24 @@ namespace HealthPath.Tests.Services
             _mockConfiguration.Setup(c => c["ASPNETCORE_ENVIRONMENT"]).Returns("Development");
 
             _mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            _mockBackgroundJobs = new Mock<IBackgroundJobDispatcher>();
+            _socialAuthOptions = Options.Create(new SocialAuthOptions { AllowMockTokens = true });
         }
+
+        private AuthService CreateService(HealthpathDbContext context) =>
+            new(
+                context,
+                _mockConfiguration.Object,
+                _mockHttpClientFactory.Object,
+                _mockBackgroundJobs.Object,
+                _socialAuthOptions);
 
         [Fact]
         public async Task SocialLoginAsync_GoogleNewUser_RegistersAndLogsIn()
         {
             // Arrange
             using var context = DbContextFactory.Create();
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var dto = new SocialLoginDto
             {
@@ -80,7 +94,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(existingUser);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var dto = new SocialLoginDto
             {
@@ -116,7 +130,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(existingUser);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var dto = new SocialLoginDto
             {
@@ -158,7 +172,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var dto = new SocialLinkDto
             {
@@ -209,7 +223,7 @@ namespace HealthPath.Tests.Services
             context.Users.AddRange(user1, user2);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var dto = new SocialLinkDto
             {
@@ -247,7 +261,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             // Act
             var result = await service.UnlinkSocialAccountAsync(userId, "google");
@@ -278,7 +292,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var result = await service.ChangePasswordAsync(userId, new ChangePasswordDto
             {
@@ -310,7 +324,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             var result = await service.ChangePasswordAsync(userId, new ChangePasswordDto
             {
@@ -343,7 +357,7 @@ namespace HealthPath.Tests.Services
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            var service = new AuthService(context, _mockConfiguration.Object, _mockHttpClientFactory.Object);
+            var service = CreateService(context);
 
             // Act
             var result = await service.UnlinkSocialAccountAsync(userId, "google");

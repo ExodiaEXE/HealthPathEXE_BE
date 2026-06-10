@@ -1,4 +1,5 @@
 ﻿using HealthPath.API.Models;
+using HealthPath.API.Models.DTOs;
 
 namespace HealthPath.API.Services
 {
@@ -9,5 +10,7 @@ namespace HealthPath.API.Services
 
         //Lấy thông tin của 1 user dựa vào ID
         Task<UserDto?> GetMeAsync(Guid userId);
+
+        Task<UserDto?> UpdateMeAsync(Guid userId, UpdateUserProfileDto request);
     }
 }

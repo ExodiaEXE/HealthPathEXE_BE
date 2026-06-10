@@ -1,6 +1,8 @@
 using HealthPath.API.Models;
 using HealthPath.API.Common;
+using HealthPath.API.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -17,22 +19,32 @@ namespace HealthPath.API.Services
 {
     public class AuthService : IAuthService
     {
+        /// <summary>Tài khoản chỉ đăng nhập social — không có mật khẩu email.</summary>
+        internal const string SocialOnlyPasswordMarker = "__SOCIAL_ONLY__";
+
         private readonly HealthpathDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IBackgroundJobDispatcher _backgroundJobs;
+        private readonly SocialAuthOptions _socialAuth;
 
         public AuthService(
             HealthpathDbContext context,
             IConfiguration configuration,
             IHttpClientFactory httpClientFactory,
-            IBackgroundJobDispatcher backgroundJobs)
+            IBackgroundJobDispatcher backgroundJobs,
+            IOptions<SocialAuthOptions> socialAuth)
         {
             _context = context;
             _configuration = configuration;
             _httpClientFactory = httpClientFactory;
             _backgroundJobs = backgroundJobs;
+            _socialAuth = socialAuth.Value;
         }
+
+        private static bool UserHasEmailPassword(string? passwordHash) =>
+            !string.IsNullOrEmpty(passwordHash) &&
+            passwordHash != SocialOnlyPasswordMarker;
 
         public async Task<ApiResponse<object>> RegisterAsync(RegisterDto request)
         {
@@ -99,6 +111,13 @@ namespace HealthPath.API.Services
             }
 
             // 2. Kiểm tra mật khẩu có khớp với cục Hash trong DB không
+            if (!UserHasEmailPassword(user.PasswordHash))
+            {
+                return ApiResponse<AuthResponseDto>.Fail(
+                    "Tài khoản này đăng nhập bằng Google hoặc Facebook. Vui lòng dùng nút đăng nhập mạng xã hội.",
+                    ErrorCode.INVALID_CREDENTIALS);
+            }
+
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
                 return ApiResponse<AuthResponseDto>.Fail("Sai email hoặc mật khẩu!", ErrorCode.INVALID_CREDENTIALS);
@@ -367,12 +386,12 @@ namespace HealthPath.API.Services
 
         private async Task<SocialUserInfo?> VerifySocialTokenAsync(string token, string provider)
         {
-            // Trong môi trường Development, chúng ta hỗ trợ Mock Token để lập trình viên và kiểm thử viên dễ dàng kiểm tra API qua Bruno/Swagger
-            var isDevelopment = _configuration["ASPNETCORE_ENVIRONMENT"] == "Development" || true;
+            var isDevelopment = _configuration["ASPNETCORE_ENVIRONMENT"] == "Development";
+            var allowMock = isDevelopment && _socialAuth.AllowMockTokens;
 
             if (provider.Equals("google", StringComparison.OrdinalIgnoreCase))
             {
-                if (isDevelopment && token.StartsWith("mock_google_token_", StringComparison.OrdinalIgnoreCase))
+                if (allowMock && token.StartsWith("mock_google_token_", StringComparison.OrdinalIgnoreCase))
                 {
                     var suffix = token["mock_google_token_".Length..];
                     return new SocialUserInfo
@@ -386,29 +405,46 @@ namespace HealthPath.API.Services
                 try
                 {
                     using var client = _httpClientFactory.CreateClient();
-                    var url = $"https://oauth2.googleapis.com/tokeninfo?id_token={token}";
+                    var url = $"https://oauth2.googleapis.com/tokeninfo?id_token={Uri.EscapeDataString(token)}";
                     var response = await client.GetAsync(url);
                     if (!response.IsSuccessStatusCode) return null;
 
                     var data = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-                    if (data.TryGetProperty("sub", out var subProp))
+                    if (!data.TryGetProperty("sub", out var subProp)) return null;
+
+                    var allowedIds = _socialAuth.GoogleClientIds
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (allowedIds.Length > 0 &&
+                        data.TryGetProperty("aud", out var audProp))
                     {
-                        return new SocialUserInfo
+                        var aud = audProp.GetString();
+                        if (string.IsNullOrEmpty(aud) ||
+                            !allowedIds.Contains(aud, StringComparer.Ordinal))
                         {
-                            Id = subProp.GetString() ?? string.Empty,
-                            Email = data.TryGetProperty("email", out var emailProp) ? emailProp.GetString() ?? string.Empty : string.Empty,
-                            Name = data.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "Google User" : "Google User"
-                        };
+                            return null;
+                        }
                     }
+
+                    return new SocialUserInfo
+                    {
+                        Id = subProp.GetString() ?? string.Empty,
+                        Email = data.TryGetProperty("email", out var emailProp)
+                            ? emailProp.GetString() ?? string.Empty
+                            : string.Empty,
+                        Name = data.TryGetProperty("name", out var nameProp)
+                            ? nameProp.GetString() ?? "Google User"
+                            : "Google User"
+                    };
                 }
                 catch
                 {
                     return null;
                 }
             }
-            else if (provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
+
+            if (provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
             {
-                if (isDevelopment && token.StartsWith("mock_facebook_token_", StringComparison.OrdinalIgnoreCase))
+                if (allowMock && token.StartsWith("mock_facebook_token_", StringComparison.OrdinalIgnoreCase))
                 {
                     var suffix = token["mock_facebook_token_".Length..];
                     return new SocialUserInfo
@@ -419,23 +455,33 @@ namespace HealthPath.API.Services
                     };
                 }
 
+                if (!string.IsNullOrWhiteSpace(_socialAuth.FacebookAppId) &&
+                    !string.IsNullOrWhiteSpace(_socialAuth.FacebookAppSecret))
+                {
+                    if (!await VerifyFacebookDebugTokenAsync(token)) return null;
+                }
+
                 try
                 {
                     using var client = _httpClientFactory.CreateClient();
-                    var url = $"https://graph.facebook.com/me?fields=id,name,email&access_token={token}";
+                    var url =
+                        $"https://graph.facebook.com/me?fields=id,name,email&access_token={Uri.EscapeDataString(token)}";
                     var response = await client.GetAsync(url);
                     if (!response.IsSuccessStatusCode) return null;
 
                     var data = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-                    if (data.TryGetProperty("id", out var idProp))
+                    if (!data.TryGetProperty("id", out var idProp)) return null;
+
+                    return new SocialUserInfo
                     {
-                        return new SocialUserInfo
-                        {
-                            Id = idProp.GetString() ?? string.Empty,
-                            Email = data.TryGetProperty("email", out var emailProp) ? emailProp.GetString() ?? string.Empty : string.Empty,
-                            Name = data.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "Facebook User" : "Facebook User"
-                        };
-                    }
+                        Id = idProp.GetString() ?? string.Empty,
+                        Email = data.TryGetProperty("email", out var emailProp)
+                            ? emailProp.GetString() ?? string.Empty
+                            : string.Empty,
+                        Name = data.TryGetProperty("name", out var nameProp)
+                            ? nameProp.GetString() ?? "Facebook User"
+                            : "Facebook User"
+                    };
                 }
                 catch
                 {
@@ -444,6 +490,41 @@ namespace HealthPath.API.Services
             }
 
             return null;
+        }
+
+        private async Task<bool> VerifyFacebookDebugTokenAsync(string userAccessToken)
+        {
+            try
+            {
+                using var client = _httpClientFactory.CreateClient();
+                var appToken = $"{_socialAuth.FacebookAppId}|{_socialAuth.FacebookAppSecret}";
+                var url =
+                    $"https://graph.facebook.com/debug_token?input_token={Uri.EscapeDataString(userAccessToken)}&access_token={Uri.EscapeDataString(appToken)}";
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode) return false;
+
+                var data = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                if (!data.TryGetProperty("data", out var payload)) return false;
+                if (!payload.TryGetProperty("is_valid", out var validProp) || !validProp.GetBoolean())
+                {
+                    return false;
+                }
+
+                if (payload.TryGetProperty("app_id", out var appIdProp))
+                {
+                    var appId = appIdProp.GetString();
+                    if (!string.Equals(appId, _socialAuth.FacebookAppId, StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<ApiResponse<AuthResponseDto>> SocialLoginAsync(SocialLoginDto request)
@@ -502,7 +583,7 @@ namespace HealthPath.API.Services
                 {
                     FullName = socialInfo.Name,
                     Email = !string.IsNullOrEmpty(socialInfo.Email) ? socialInfo.Email : $"{socialInfo.Id}@{request.Provider}.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")), // Mật khẩu ngẫu nhiên an toàn tuyệt đối
+                    PasswordHash = SocialOnlyPasswordMarker,
                     IsActive = true,
                     IsVerified = true,
                     EmailVerifiedAt = DateTime.UtcNow,
@@ -591,7 +672,7 @@ namespace HealthPath.API.Services
             }
 
             // Ràng buộc bảo mật: Phải có ít nhất 1 phương thức đăng nhập còn lại (Password hoặc social khác)
-            bool hasPassword = !string.IsNullOrEmpty(user.PasswordHash);
+            bool hasPassword = UserHasEmailPassword(user.PasswordHash);
             bool hasOtherGoogle = provider.Equals("facebook", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(user.GoogleId);
             bool hasOtherFacebook = provider.Equals("google", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(user.FacebookId);
 

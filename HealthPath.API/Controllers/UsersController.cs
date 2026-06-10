@@ -1,5 +1,6 @@
 using HealthPath.API.Extensions;
 using HealthPath.API.Models;
+using HealthPath.API.Models.DTOs;
 using HealthPath.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +34,25 @@ namespace HealthPath.API.Controllers
             }
 
             // 3. Trả về cho Mobile
+            return Ok(user);
+        }
+
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMe([FromBody] UpdateUserProfileDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = User.GetUserId();
+            var user = await _userService.UpdateMeAsync(userId, request);
+            if (user == null)
+            {
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+            }
+
             return Ok(user);
         }
     }
