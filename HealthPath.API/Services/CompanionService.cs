@@ -318,22 +318,25 @@ public class CompanionService : ICompanionService
 
         return ApiResponse<CompanionStateDto>.Ok(MapState(pet), "Đã trang trí phòng!");
     }
-
     public async Task<ApiResponse<CompanionStateDto>> SetRoomThemeAsync(Guid userId, SetRoomThemeDto dto)
     {
-        var allowed = new[] { "cozy", "modern", "nature" };
+        var allowed = new[] { "room_1", "room_2", "room_3", "room_4", "cozy", "modern", "nature" };
         if (!allowed.Contains(dto.Theme))
         {
             return ApiResponse<CompanionStateDto>.Fail("Chủ đề phòng không hợp lệ.", ErrorCode.VALIDATION_ERROR);
         }
 
+        var theme = dto.Theme;
+        if (theme == "cozy" || theme == "bg_cozy") theme = "room_1";
+        else if (theme == "modern" || theme == "bg_modern") theme = "room_2";
+        else if (theme == "nature" || theme == "bg_nature") theme = "room_3";
+
         var pet = await GetOrCreatePetAsync(userId);
-        pet.RoomTheme = dto.Theme;
+        pet.RoomTheme = theme;
         pet.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return ApiResponse<CompanionStateDto>.Ok(MapState(pet));
     }
-
     public Task ReportEventAsync(Guid userId, string eventCode, int increment = 1)
         => ReportEventInternalAsync(userId, eventCode, increment, isRetry: false);
 
@@ -651,36 +654,76 @@ public class CompanionService : ICompanionService
 
     private async Task EnsureSeedDataAsync()
     {
-        if (await _db.CompanionCatalogItems.AnyAsync()) return;
-
-        var catalog = new List<CompanionCatalogItem>
+        if (!await _db.CompanionCatalogItems.AnyAsync())
         {
-            new() { Id = Guid.NewGuid(), Sku = "plant_green", Name = "Cây xanh", Category = "furniture", Price = 0, IconEmoji = "🪴", IsDefaultOwned = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "desk_books", Name = "Bàn học", Category = "furniture", Price = 50, IconEmoji = "📚", IsDefaultOwned = true, SortOrder = 2, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "sofa_blue", Name = "Ghế sofa", Category = "furniture", Price = 80, IconEmoji = "🛋️", IsDefaultOwned = true, SortOrder = 3, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "lamp_warm", Name = "Đèn bàn", Category = "furniture", Price = 40, IconEmoji = "💡", IsDefaultOwned = true, SortOrder = 4, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "bg_cozy", Name = "Phòng ấm cúng", Category = "background", Price = 0, IconEmoji = "🏠", IsDefaultOwned = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "bg_modern", Name = "Phòng hiện đại", Category = "background", Price = 120, IconEmoji = "🏢", SortOrder = 2, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "bg_nature", Name = "Phòng thiên nhiên", Category = "background", Price = 120, IconEmoji = "🌿", SortOrder = 3, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "outfit_scarf", Name = "Khăn xanh", Category = "outfit", Price = 60, IconEmoji = "🧣", SortOrder = 1, CreatedAt = DateTime.UtcNow },
-        };
-        _db.CompanionCatalogItems.AddRange(catalog);
+            var catalog = new List<CompanionCatalogItem>
+            {
+                new() { Id = Guid.NewGuid(), Sku = "plant_green", Name = "Cây xanh", Category = "furniture", Price = 0, IconEmoji = "🪴", IsDefaultOwned = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "desk_books", Name = "Bàn học", Category = "furniture", Price = 50, IconEmoji = "📚", IsDefaultOwned = true, SortOrder = 2, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "sofa_blue", Name = "Ghế sofa", Category = "furniture", Price = 80, IconEmoji = "🛋️", IsDefaultOwned = true, SortOrder = 3, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "lamp_warm", Name = "Đèn bàn", Category = "furniture", Price = 40, IconEmoji = "💡", IsDefaultOwned = true, SortOrder = 4, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "room_1", Name = "Phòng 1", Category = "background", Price = 0, IconEmoji = "🏠", IsDefaultOwned = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "room_2", Name = "Phòng 2", Category = "background", Price = 120, IconEmoji = "🏢", SortOrder = 2, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "room_3", Name = "Phòng 3", Category = "background", Price = 120, IconEmoji = "🌿", SortOrder = 3, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "room_4", Name = "Phòng 4", Category = "background", Price = 150, IconEmoji = "🏕️", SortOrder = 4, CreatedAt = DateTime.UtcNow },
+                new() { Id = Guid.NewGuid(), Sku = "outfit_scarf", Name = "Khăn xanh", Category = "outfit", Price = 60, IconEmoji = "🧣", SortOrder = 1, CreatedAt = DateTime.UtcNow },
+            };
+            _db.CompanionCatalogItems.AddRange(catalog);
 
-        var missions = new List<CompanionMissionTemplate>
+            var missions = new List<CompanionMissionTemplate>
+            {
+                new() { Id = Guid.NewGuid(), Code = "daily_login", Title = "Đăng nhập app", Description = "Mở HealthPath hôm nay", Category = "daily", TargetCount = 1, RewardCoins = 5, RewardXp = 10, SortOrder = 1 },
+                new() { Id = Guid.NewGuid(), Code = "feed_pet", Title = "Cho ăn 1 lần", Description = "Cho bạn đồng hành ăn", Category = "daily", TargetCount = 1, RewardCoins = 5, RewardXp = 10, SortOrder = 2 },
+                new() { Id = Guid.NewGuid(), Code = "pet_interact", Title = "Vuốt ve 5 lần", Description = "Tương tác với mèo Xanh", Category = "daily", TargetCount = 5, RewardCoins = 10, RewardXp = 15, SortOrder = 3 },
+                new() { Id = Guid.NewGuid(), Code = "routine_complete", Title = "Hoàn thành 1 thói quen", Description = "Làm ít nhất 1 routine hôm nay", Category = "daily", TargetCount = 1, RewardCoins = 15, RewardXp = 20, SortOrder = 4 },
+                new() { Id = Guid.NewGuid(), Code = "audio_listen", Title = "Nghe 2 bài audio", Description = "Nghe nhạc thư giãn", Category = "daily", TargetCount = 2, RewardCoins = 10, RewardXp = 15, SortOrder = 5 },
+                new() { Id = Guid.NewGuid(), Code = "group_checkin", Title = "Điểm danh nhóm", Description = "Check-in cùng nhóm hôm nay", Category = "daily", TargetCount = 1, RewardCoins = 20, RewardXp = 25, SortOrder = 6 },
+                new() { Id = Guid.NewGuid(), Code = "happiness_80", Title = "Hạnh phúc > 80", Description = "Duy trì vui vẻ > 80", Category = "daily", TargetCount = 1, RewardCoins = 15, RewardXp = 20, SortOrder = 7 },
+                new() { Id = Guid.NewGuid(), Code = "weekly_routine_5", Title = "5 thói quen/tuần", Description = "Hoàn thành 5 routine trong tuần", Category = "weekly", TargetCount = 5, RewardCoins = 50, RewardXp = 80, SortOrder = 1 },
+                new() { Id = Guid.NewGuid(), Code = "once_level_5", Title = "Đạt level 5", Description = "Nâng cấp bạn đồng hành lên level 5", Category = "once", TargetCount = 1, RewardCoins = 200, RewardXp = 500, SortOrder = 1 },
+                new() { Id = Guid.NewGuid(), Code = "once_coins_1000", Title = "Tích lũy 1000 xu", Description = "Tích lũy tổng cộng 1000 xu", Category = "once", TargetCount = 1000, RewardCoins = 500, RewardXp = 1000, SortOrder = 2 },
+            };
+            _db.CompanionMissionTemplates.AddRange(missions);
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("Companion catalog and missions seeded.");
+        }
+        else
         {
-            new() { Id = Guid.NewGuid(), Code = "daily_login", Title = "Đăng nhập app", Description = "Mở HealthPath hôm nay", Category = "daily", TargetCount = 1, RewardCoins = 5, RewardXp = 10, SortOrder = 1 },
-            new() { Id = Guid.NewGuid(), Code = "feed_pet", Title = "Cho ăn 1 lần", Description = "Cho bạn đồng hành ăn", Category = "daily", TargetCount = 1, RewardCoins = 5, RewardXp = 10, SortOrder = 2 },
-            new() { Id = Guid.NewGuid(), Code = "pet_interact", Title = "Vuốt ve 5 lần", Description = "Tương tác với mèo Xanh", Category = "daily", TargetCount = 5, RewardCoins = 10, RewardXp = 15, SortOrder = 3 },
-            new() { Id = Guid.NewGuid(), Code = "routine_complete", Title = "Hoàn thành 1 thói quen", Description = "Làm ít nhất 1 routine hôm nay", Category = "daily", TargetCount = 1, RewardCoins = 15, RewardXp = 20, SortOrder = 4 },
-            new() { Id = Guid.NewGuid(), Code = "audio_listen", Title = "Nghe 2 bài audio", Description = "Nghe nhạc thư giãn", Category = "daily", TargetCount = 2, RewardCoins = 10, RewardXp = 15, SortOrder = 5 },
-            new() { Id = Guid.NewGuid(), Code = "group_checkin", Title = "Điểm danh nhóm", Description = "Check-in cùng nhóm hôm nay", Category = "daily", TargetCount = 1, RewardCoins = 20, RewardXp = 25, SortOrder = 6 },
-            new() { Id = Guid.NewGuid(), Code = "happiness_80", Title = "Hạnh phúc > 80", Description = "Duy trì vui vẻ > 80", Category = "daily", TargetCount = 1, RewardCoins = 15, RewardXp = 20, SortOrder = 7 },
-            new() { Id = Guid.NewGuid(), Code = "weekly_routine_5", Title = "5 thói quen/tuần", Description = "Hoàn thành 5 routine trong tuần", Category = "weekly", TargetCount = 5, RewardCoins = 50, RewardXp = 80, SortOrder = 1 },
-            new() { Id = Guid.NewGuid(), Code = "once_level_5", Title = "Đạt level 5", Description = "Nâng cấp bạn đồng hành lên level 5", Category = "once", TargetCount = 1, RewardCoins = 200, RewardXp = 500, SortOrder = 1 },
-            new() { Id = Guid.NewGuid(), Code = "once_coins_1000", Title = "Tích lũy 1000 xu", Description = "Tích lũy tổng cộng 1000 xu", Category = "once", TargetCount = 1000, RewardCoins = 500, RewardXp = 1000, SortOrder = 2 },
-        };
-        _db.CompanionMissionTemplates.AddRange(missions);
-        await _db.SaveChangesAsync();
-        _logger.LogInformation("Companion catalog and missions seeded.");
+            var cozy = await _db.CompanionCatalogItems.FirstOrDefaultAsync(c => c.Sku == "bg_cozy");
+            if (cozy != null)
+            {
+                cozy.Sku = "room_1";
+                cozy.Name = "Phòng 1";
+            }
+            var modern = await _db.CompanionCatalogItems.FirstOrDefaultAsync(c => c.Sku == "bg_modern");
+            if (modern != null)
+            {
+                modern.Sku = "room_2";
+                modern.Name = "Phòng 2";
+            }
+            var nature = await _db.CompanionCatalogItems.FirstOrDefaultAsync(c => c.Sku == "bg_nature");
+            if (nature != null)
+            {
+                nature.Sku = "room_3";
+                nature.Name = "Phòng 3";
+            }
+
+            var hasRoom4 = await _db.CompanionCatalogItems.AnyAsync(c => c.Sku == "room_4");
+            if (!hasRoom4)
+            {
+                _db.CompanionCatalogItems.Add(new CompanionCatalogItem
+                {
+                    Id = Guid.NewGuid(),
+                    Sku = "room_4",
+                    Name = "Phòng 4",
+                    Category = "background",
+                    Price = 150,
+                    IconEmoji = "🏕️",
+                    SortOrder = 4,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            await _db.SaveChangesAsync();
+        }
     }
 }
