@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "workspace-trung-fptk19",
+  "private_key_id": "cee9503d5f81667051580a78651fa2851c4244bf",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCw07l8G5PCtF0Z\nICRXRnVW8Sb2mtnWBRw/SazyS/0bYmfY0HD3IsQSaPp+I5BT/fjZSccrZki6LaUv\nHyzznezc2QWZOQGeHhFc+0sR8v6gQJGR5+Q9KPESN+IX0n0UiWmv7Zke+G7e/tNB\nUdomoFpDAXoSPHz4XCARwivTz8rDCbiHnLt4Dnaf29B7D4xirWycWVwPoDkIz6l6\n3fQQomvSD5E/rMCmppUo59C2BzPUDpI4AXapbNMy9D0/wxa72W6fBsAMO/l6tnvB\nCeZ2mJF1MfeH2TQ+POrlOKG02lYfITbk0xoRwcyMzlEOOWskKICsEeZeWxs3Okh7\ndr+r4RXpAgMBAAECggEAElqfpaCtKSgUg7+g1ghDtLcKPs2a78qPAIiysWGuz3Fa\n6xfTqetLY8fOvFoPqJAzjMZKLJiM0vpa63W2ckEBrXi/SoSuxM1FKxwQUjghMtwQ\n4A6sU6bUwvnW93cLMZ8Dv9WPL7ZEt9PGdMC8voalZ9AW7h6mMBdL4tv/NZibaLwE\n329fW3ssVeDhgiAxAqXhnUJYSvEofJDRD45CyGsuyBIoh1JaOriFq7KeCzngBCjl\nZaXZZ8TKLAMhy6wHgpbWlGIyagoUO/7a8R/VQ2MXwMLvdbXSPkrT7GpRiwpP0V78\nVECqIpSMhVtQYcbXnhBSyePXlObIndcJZh5ymIjJawKBgQDciFmPYMSCZXALke02\nr0YuJw2B45poMDmwWUbu2XIjMkX6ksu4NhIgxnU1dVCVtuvbclKarqQol3KBrbLo\niaIQTXx0ezRwrliNMeHYpM5L49tkByobGft2Fz4D+kwmJe9iy45DVsf8jFekv2Qk\nEZqIn9ofp4qASO9+06138cMK4wKBgQDNQ/PeNusgDNbIlGU5AvH4D1l0ZqNoWVYk\neH3jMDpOLzDs+BMe8RGu6i4MZyijHiLcwuOQCAX99CPwajwqtethbwjE7L3p2gFu\niCCk+96WoprQ0g4khXp7NkBjwpOmSQ9K4Qa6uNe2hxV1HYtBzq9uMG9Xvk8W++2s\nk/DEprP5wwKBgQC1pKj/65hwPtTW8s8L57pKcWgywCGCB5a8pgxC11+nldUF2rtp\ncz/jNxN7gLFrX0tNaRCYz5fuxy9NmKBv4E1YWDpWRtSeqzvMsHVxV+2DnJ4r+aq4\nv+HbFrHB3PuzwDM4kKkQ1f3LCl12GR6Ghuld9yxWPk1Z9LkvIXMUBFG+OQKBgB35\nSEkwt9DsTwjnMojKt07D3woyWrZIJV4aAjgEuN7l4T0ZVKF2DmD+bU7+WV7IbcrS\n4qwLn+RfnEflG3gZLJADyMII2Aqn/QGI+0tcRDq27+iCY/JNU39egrSOm0Ty8jq6\n9WKaz1UmEKoTcFxhtBhhFkE31xDCJQjIaaYtuaZFAoGAKMH2L8uSd8YaxeTZiZ84\nDJ7rLAYfx/1fsLzinGvfWB38OwsXqDi/x1Da0YC6qqtbjxNBhfFZKWPapbd9FLsR\niAW6DAi64mD1eNZVnhq2eH6iv0UVpKWx8gvVbvVvJQdm7RoeVPeHz1KLWxmoiOwp\nU001e642pARLQ7spdgvzxaE=\n-----END PRIVATE KEY-----\n",
+  "client_email": "healthpath-iap@workspace-trung-fptk19.iam.gserviceaccount.com",
+  "client_id": "111090596125065200015",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/healthpath-iap%40workspace-trung-fptk19.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

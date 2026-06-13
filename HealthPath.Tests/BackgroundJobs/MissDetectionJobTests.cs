@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using HealthPath.API.BackgroundJobs;
 using HealthPath.API.Models;
+using HealthPath.API.Services;
 using HealthPath.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace HealthPath.Tests.BackgroundJobs;
@@ -17,7 +19,8 @@ public class MissDetectionJobTests
     {
         using var context = DbContextFactory.Create();
         var logger = NullLogger<MissDetectionJob>.Instance;
-        var job = new MissDetectionJob(context, logger);
+        var notifications = new Mock<INotificationService>();
+        var job = new MissDetectionJob(context, notifications.Object, logger);
 
         // Get current time in UTC+7 (SE Asia Standard Time)
         var nowVn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));

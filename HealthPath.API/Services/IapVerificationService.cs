@@ -1,8 +1,13 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Google.Apis.AndroidPublisher.v3;
+using Google.Apis.AndroidPublisher.v3.Data;
+using Google.Apis.Auth.OAuth2;
+using Google.Apis.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -26,64 +31,207 @@ public class IapVerificationService : IIapVerificationService
 
     public async Task<IapVerificationResult> VerifyAndroidPurchaseAsync(string productId, string purchaseToken)
     {
-        _logger.LogInformation("Verifying Android Purchase for Product {ProductId}", productId);
+        _logger.LogInformation(
+            "Verifying Android purchase for product {ProductId}",
+            productId);
 
-        bool isMockMode = _configuration.GetValue("IAP:MockMode", true);
-        if (isMockMode || string.IsNullOrWhiteSpace(_configuration["IAP:Google:ServiceAccountKey"]))
+        if (string.IsNullOrWhiteSpace(purchaseToken))
         {
-            _logger.LogWarning("Android IAP Verification is running in MOCK mode.");
-            if (purchaseToken.Equals("fail_token", StringComparison.OrdinalIgnoreCase))
-            {
-                return new IapVerificationResult
-                {
-                    IsValid = false,
-                    ErrorMessage = "Mock Verification: Invalid purchase token."
-                };
-            }
-
-            return new IapVerificationResult
-            {
-                IsValid = true,
-                PlatformTransactionId = $"gplay_{Guid.NewGuid():N}",
-                OriginalTransactionId = $"gplay_orig_{Guid.NewGuid():N}",
-                PurchasedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(30),
-                Amount = 0, // In mock, we assume 0 or dummy
-                Currency = "VND"
-            };
+            return InvalidAndroid("Thiếu purchase token từ Google Play.");
         }
 
-        // Real Google Play Verification Integration (Placeholder/Stub using HTTP API if service account is set)
+        bool isMockMode = _configuration.GetValue("IAP:MockMode", true);
+        var serviceAccountKey = _configuration["IAP:Google:ServiceAccountKey"];
+
+        if (isMockMode || string.IsNullOrWhiteSpace(serviceAccountKey))
+        {
+            return VerifyAndroidMock(purchaseToken);
+        }
+
+        if (purchaseToken.Equals("mock_google_play_dev", StringComparison.OrdinalIgnoreCase))
+        {
+            return InvalidAndroid(
+                "Token mock không được chấp nhận khi IAP:MockMode=false.");
+        }
+
         try
         {
-            // Here, in real production:
-            // 1. Authenticate using the service account JSON key to get an OAuth2 access token.
-            // 2. Call Google Publisher API: GET https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{packageName}/purchases/subscriptions/{subscriptionId}/tokens/{token}
-            // Below is the schema structure if we call it. For safety and compliance:
-            _logger.LogInformation("Google Service Account Key found. Initiating real Google Play check...");
-            
-            // Return valid for now as we don't have actual active Google OAuth runtime environment details
+            var packageName = string.IsNullOrWhiteSpace(_configuration["IAP:Google:PackageName"])
+                ? "com.exodiateam.healthpath"
+                : _configuration["IAP:Google:PackageName"]!;
+
+            var publisher = CreateAndroidPublisherService(serviceAccountKey);
+            var subscription = await publisher.Purchases.Subscriptionsv2
+                .Get(packageName, purchaseToken)
+                .ExecuteAsync();
+
+            var lineItem = subscription.LineItems?
+                .FirstOrDefault(li =>
+                    string.Equals(li.ProductId, productId, StringComparison.OrdinalIgnoreCase))
+                ?? subscription.LineItems?.FirstOrDefault();
+
+            if (lineItem == null)
+            {
+                return InvalidAndroid(
+                    $"Google Play không trả về line item cho sản phẩm {productId}.");
+            }
+
+            if (!string.Equals(lineItem.ProductId, productId, StringComparison.OrdinalIgnoreCase))
+            {
+                return InvalidAndroid(
+                    $"Product ID không khớp: yêu cầu {productId}, Google trả về {lineItem.ProductId}.");
+            }
+
+            var utcNow = DateTime.UtcNow;
+            if (!IsGoogleSubscriptionEntitled(subscription, utcNow))
+            {
+                var state = subscription.SubscriptionState ?? "unknown";
+                return InvalidAndroid(
+                    $"Gói Google Play chưa active (state={state}).");
+            }
+
+            var expiresAt = lineItem.ExpiryTimeDateTimeOffset?.UtcDateTime;
+            if (expiresAt == null || expiresAt <= utcNow)
+            {
+                return InvalidAndroid("Gói Google Play đã hết hạn.");
+            }
+
+            if (string.Equals(
+                    subscription.AcknowledgementState,
+                    "ACKNOWLEDGEMENT_STATE_PENDING",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "Acknowledging Google subscription {ProductId} for package {Package}",
+                    productId,
+                    packageName);
+
+                await publisher.Purchases.Subscriptions.Acknowledge(
+                        new SubscriptionPurchasesAcknowledgeRequest(),
+                        packageName,
+                        productId,
+                        purchaseToken)
+                    .ExecuteAsync();
+            }
+
+            var purchasedAt = subscription.StartTimeDateTimeOffset?.UtcDateTime ?? utcNow;
+            var orderId = subscription.LatestOrderId ?? purchaseToken;
+
+            _logger.LogInformation(
+                "Google Play verification OK: order={OrderId}, expires={ExpiresAt}",
+                orderId,
+                expiresAt);
+
             return new IapVerificationResult
             {
                 IsValid = true,
-                PlatformTransactionId = $"gplay_real_{Guid.NewGuid():N}",
-                OriginalTransactionId = $"gplay_real_orig_{Guid.NewGuid():N}",
-                PurchasedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(30),
+                PlatformTransactionId = orderId,
+                OriginalTransactionId = purchaseToken,
+                PurchasedAt = purchasedAt,
+                ExpiresAt = expiresAt,
                 Amount = 0,
-                Currency = "VND"
+                Currency = "VND",
             };
+        }
+        catch (Google.GoogleApiException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Google Play Publisher API error ({StatusCode}): {Message}",
+                ex.HttpStatusCode,
+                ex.Message);
+
+            return InvalidAndroid(
+                $"Google Play API ({(int)ex.HttpStatusCode}): {ex.Message}");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to verify Android IAP with Google Play APIs");
-            return new IapVerificationResult
-            {
-                IsValid = false,
-                ErrorMessage = $"Google Play API Error: {ex.Message}"
-            };
+            return InvalidAndroid($"Google Play API Error: {ex.Message}");
         }
     }
+
+    private IapVerificationResult VerifyAndroidMock(string purchaseToken)
+    {
+        _logger.LogWarning("Android IAP Verification is running in MOCK mode.");
+
+        if (purchaseToken.Equals("fail_token", StringComparison.OrdinalIgnoreCase))
+        {
+            return InvalidAndroid("Mock Verification: Invalid purchase token.");
+        }
+
+        return new IapVerificationResult
+        {
+            IsValid = true,
+            PlatformTransactionId = $"gplay_{Guid.NewGuid():N}",
+            OriginalTransactionId = purchaseToken,
+            PurchasedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            Amount = 0,
+            Currency = "VND",
+        };
+    }
+
+    private static bool IsGoogleSubscriptionEntitled(
+        SubscriptionPurchaseV2 subscription,
+        DateTime utcNow)
+    {
+        var expiry = subscription.LineItems?
+            .Select(li => li.ExpiryTimeDateTimeOffset?.UtcDateTime)
+            .Where(t => t.HasValue)
+            .Select(t => t!.Value)
+            .DefaultIfEmpty()
+            .Max();
+
+        if (expiry > utcNow)
+        {
+            return true;
+        }
+
+        var state = subscription.SubscriptionState ?? string.Empty;
+        return state is "SUBSCRIPTION_STATE_ACTIVE"
+            or "SUBSCRIPTION_STATE_IN_GRACE_PERIOD";
+    }
+
+    private AndroidPublisherService CreateAndroidPublisherService(string serviceAccountKey)
+    {
+        GoogleCredential credential;
+        var trimmed = serviceAccountKey.Trim();
+
+        if (trimmed.StartsWith('{'))
+        {
+            credential = GoogleCredential.FromJson(trimmed);
+        }
+        else
+        {
+            var path = Path.IsPathRooted(trimmed)
+                ? trimmed
+                : Path.Combine(Directory.GetCurrentDirectory(), trimmed);
+
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException(
+                    $"Google Play service account key not found: {path}");
+            }
+
+            credential = GoogleCredential.FromFile(path);
+        }
+
+        credential = credential.CreateScoped(AndroidPublisherService.Scope.Androidpublisher);
+
+        return new AndroidPublisherService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = "HealthPath API",
+        });
+    }
+
+    private static IapVerificationResult InvalidAndroid(string message) =>
+        new()
+        {
+            IsValid = false,
+            ErrorMessage = message,
+        };
 
     public async Task<IapVerificationResult> VerifyIosPurchaseAsync(string productId, string receiptData)
     {
@@ -141,7 +289,7 @@ public class IapVerificationService : IIapVerificationService
                 url = "https://sandbox.itunes.apple.com/verifyReceipt";
                 response = await _httpClient.PostAsJsonAsync(url, payload);
                 resultJson = await response.Content.ReadAsStringAsync();
-                
+
                 using var sandboxDoc = JsonDocument.Parse(resultJson);
                 root = sandboxDoc.RootElement;
                 status = root.GetProperty("status").GetInt32();
@@ -151,7 +299,7 @@ public class IapVerificationService : IIapVerificationService
             {
                 // Successful verification
                 _logger.LogInformation("App Store Verification Succeeded.");
-                
+
                 // Parse transaction details from receipts
                 // Typically we inspect "latest_receipt_info" array
                 if (root.TryGetProperty("latest_receipt_info", out var latestReceiptInfo) && latestReceiptInfo.GetArrayLength() > 0)
@@ -159,7 +307,7 @@ public class IapVerificationService : IIapVerificationService
                     var lastReceipt = latestReceiptInfo[latestReceiptInfo.GetArrayLength() - 1];
                     string transactionId = lastReceipt.GetProperty("transaction_id").GetString()!;
                     string originalTransactionId = lastReceipt.GetProperty("original_transaction_id").GetString()!;
-                    
+
                     // Parse expiration date milliseconds
                     long expiresDateMs = long.Parse(lastReceipt.GetProperty("expires_date_ms").GetString()!);
                     long purchaseDateMs = long.Parse(lastReceipt.GetProperty("purchase_date_ms").GetString()!);
@@ -178,7 +326,7 @@ public class IapVerificationService : IIapVerificationService
                         Currency = "VND"
                     };
                 }
-                
+
                 return new IapVerificationResult
                 {
                     IsValid = false,

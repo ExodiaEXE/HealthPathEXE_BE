@@ -124,7 +124,7 @@ public class SubscriptionServiceTests
         result.Data.Should().NotBeNull();
         result.Data!.Status.Should().Be("active");
         result.Data.PlanId.Should().Be(planId);
-        result.Data.PaymentRef.Should().Be("gplay_tx_123456");
+        result.Data.PaymentRef.Should().Be("valid_google_token");
 
         // Verify Database
         context.Transactions.Should().HaveCount(1);

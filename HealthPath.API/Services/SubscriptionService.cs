@@ -13,6 +13,8 @@ namespace HealthPath.API.Services;
 
 public class SubscriptionService : ISubscriptionService
 {
+    private const string GoogleSubscriptionProductId = "healthpath_subscription";
+
     private readonly HealthpathDbContext _context;
     private readonly IIapVerificationService _iapVerificationService;
     private readonly ILogger<SubscriptionService> _logger;
@@ -132,6 +134,17 @@ public class SubscriptionService : ISubscriptionService
                 .FirstOrDefaultAsync(p => p.AppleProductId == request.ProductId && p.DeletedAt == null);
         }
 
+        // Fallback: subscription product ID + billing cycle (Play Console base plans)
+        if (plan == null &&
+            string.Equals(request.ProductId, GoogleSubscriptionProductId, StringComparison.OrdinalIgnoreCase))
+        {
+            var planCode = string.Equals(request.BillingCycle, "yearly", StringComparison.OrdinalIgnoreCase)
+                ? "premium_yearly"
+                : "premium_monthly";
+            plan = await _context.SubscriptionPlans
+                .FirstOrDefaultAsync(p => p.Code == planCode && p.DeletedAt == null);
+        }
+
         // Fallback: search by Plan Code
         if (plan == null)
         {
@@ -220,7 +233,7 @@ public class SubscriptionService : ISubscriptionService
                 StartedAt = verificationResult.PurchasedAt,
                 ExpiresAt = expireDate,
                 PaymentProvider = platformCanonical,
-                PaymentRef = verificationResult.PlatformTransactionId,
+                PaymentRef = ResolvePaymentRef(platformCanonical, request.PurchaseToken, verificationResult),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -235,7 +248,7 @@ public class SubscriptionService : ISubscriptionService
             userSub.StartedAt = verificationResult.PurchasedAt;
             userSub.ExpiresAt = expireDate;
             userSub.PaymentProvider = platformCanonical;
-            userSub.PaymentRef = verificationResult.PlatformTransactionId;
+            userSub.PaymentRef = ResolvePaymentRef(platformCanonical, request.PurchaseToken, verificationResult);
             userSub.UpdatedAt = DateTime.UtcNow;
             userSub.CancelledAt = null; // Reset cancelled state if purchased again/renewed
         }
@@ -367,20 +380,22 @@ public class SubscriptionService : ISubscriptionService
 
                         _logger.LogInformation("Google notification type: {Type}, Token: {Token}", notificationType, purchaseToken);
 
-                        // Find corresponding subscription
-                        var userSub = await _context.UserSubscriptions
-                            .FirstOrDefaultAsync(s => s.PaymentRef == purchaseToken && s.DeletedAt == null);
+                        // Find user via stored purchase token (PaymentRef or Transactions)
+                        var userSub = await FindGoogleSubscriptionByPurchaseTokenAsync(purchaseToken);
 
                         if (userSub != null)
                         {
                             // Types: 2 (Renewed), 3 (Cancelled), 5 (Expired), 12 (Revoked/Refunded)
                             if (notificationType == 2) // RENEWED
                             {
-                                userSub.Status = "active";
-                                // For real renew, backend should query Google Publisher API to find new expires_at,
-                                // but for webhook processing, we can add a month as default or just log it.
-                                userSub.ExpiresAt = userSub.ExpiresAt?.AddMonths(userSub.BillingCycle == "yearly" ? 12 : 1) ?? DateTime.UtcNow.AddMonths(1);
-                                userSub.UpdatedAt = DateTime.UtcNow;
+                                var verification = await _iapVerificationService
+                                    .VerifyAndroidPurchaseAsync(subscriptionId, purchaseToken);
+                                if (verification.IsValid)
+                                {
+                                    userSub.Status = "active";
+                                    userSub.ExpiresAt = verification.ExpiresAt ?? userSub.ExpiresAt;
+                                    userSub.UpdatedAt = DateTime.UtcNow;
+                                }
                             }
                             else if (notificationType == 3) // CANCELED
                             {
@@ -414,6 +429,45 @@ public class SubscriptionService : ISubscriptionService
         }
 
         return ApiResponse<bool>.Fail("Platform không hợp lệ.", ErrorCode.VALIDATION_ERROR);
+    }
+
+    private static string ResolvePaymentRef(
+        string platform,
+        string purchaseToken,
+        IapVerificationResult verification)
+    {
+        if (platform.Equals("GooglePlay", StringComparison.OrdinalIgnoreCase))
+        {
+            return purchaseToken;
+        }
+
+        return verification.OriginalTransactionId ?? verification.PlatformTransactionId;
+    }
+
+    private async Task<UserSubscription?> FindGoogleSubscriptionByPurchaseTokenAsync(string purchaseToken)
+    {
+        var byRef = await _context.UserSubscriptions
+            .FirstOrDefaultAsync(s =>
+                s.PaymentRef == purchaseToken
+                && s.PaymentProvider == "GooglePlay"
+                && s.DeletedAt == null);
+        if (byRef != null)
+        {
+            return byRef;
+        }
+
+        var tx = await _context.Transactions
+            .Where(t => t.PurchaseToken == purchaseToken && t.Platform == "GooglePlay")
+            .OrderByDescending(t => t.PurchasedAt)
+            .FirstOrDefaultAsync();
+
+        if (tx == null)
+        {
+            return null;
+        }
+
+        return await _context.UserSubscriptions
+            .FirstOrDefaultAsync(s => s.UserId == tx.UserId && s.DeletedAt == null);
     }
 
     private static string Base64UrlDecode(string input)

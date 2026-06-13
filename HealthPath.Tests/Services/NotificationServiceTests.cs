@@ -21,6 +21,7 @@ public class NotificationServiceTests
     private readonly Mock<INotificationChannel> _mockPushChannel;
     private readonly Mock<INotificationChannel> _mockEmailChannel;
     private readonly Mock<ILogger<NotificationService>> _mockLogger;
+    private readonly Mock<IBackgroundJobDispatcher> _mockBackgroundJobs;
     private readonly List<INotificationChannel> _channels;
 
     public NotificationServiceTests()
@@ -35,6 +36,7 @@ public class NotificationServiceTests
         _mockEmailChannel.Setup(c => c.Name).Returns("email");
 
         _mockLogger = new Mock<ILogger<NotificationService>>();
+        _mockBackgroundJobs = new Mock<IBackgroundJobDispatcher>();
 
         _channels = new List<INotificationChannel>
         {
@@ -59,7 +61,8 @@ public class NotificationServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
 
         // Act
         var result = await service.GetSettingsAsync(userId);
@@ -91,7 +94,8 @@ public class NotificationServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
         var updateDto = new UpdateNotificationSettingDto
         {
             InAppEnabled = false,
@@ -127,7 +131,8 @@ public class NotificationServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
         var dto = new RegisterDeviceTokenDto
         {
             Token = "fcm_token_123",
@@ -171,7 +176,8 @@ public class NotificationServiceTests
         context.DeviceTokens.Add(deviceToken);
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
 
         // Act
         var result = await service.RemoveDeviceTokenAsync("token_to_remove", userId);
@@ -209,7 +215,8 @@ public class NotificationServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
 
         // Act
         var result = await service.MarkAsReadAsync(notifId, userId);
@@ -249,7 +256,8 @@ public class NotificationServiceTests
         });
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
 
         // Act
         var result = await service.DeleteNotificationAsync(notifId, userId);
@@ -293,7 +301,8 @@ public class NotificationServiceTests
         context.NotificationSettings.Add(setting);
         await context.SaveChangesAsync();
 
-        var service = new NotificationService(context, _channels, _mockLogger.Object);
+        var service = new NotificationService(
+            context, _channels, _mockLogger.Object, _mockBackgroundJobs.Object);
         var dto = new SendNotificationDto
         {
             UserId = userId,

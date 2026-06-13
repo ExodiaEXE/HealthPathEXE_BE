@@ -368,3 +368,8 @@ FodyWeavers.xsd
 
 # Local Environment Variables
 .env
+
+# Firebase Admin SDK (service account private key)
+firebase-service-account.json
+**/firebase-service-account*.json
+**/*-firebase-adminsdk-*.json
