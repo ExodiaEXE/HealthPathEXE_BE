@@ -1,0 +1,26 @@
+meta {
+  name: Create Blog
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/admin/blogs
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "title": "Chế độ ăn Địa Trung Hải cho người mới bắt đầu",
+    "body": "Chế độ ăn Địa Trung Hải tập trung vào các thực phẩm nguồn gốc thực vật, chất béo lành mạnh như dầu ô liu, cá và ngũ cốc nguyên hạt. Nghiên cứu cho thấy chế độ ăn này hỗ trợ tốt cho tim mạch và giảm nguy cơ mắc các bệnh mãn tính...",
+    "summary": "Hướng dẫn chi tiết về chế độ ăn Địa Trung Hải cùng thực đơn mẫu đơn giản cho người bắt đầu.",
+    "thumbnailUrl": "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+    "categoryId": "00000000-0000-0000-0000-000000000000",
+    "isActive": true
+  }
+}

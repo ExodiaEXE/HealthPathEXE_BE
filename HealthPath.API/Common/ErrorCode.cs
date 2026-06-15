@@ -53,6 +53,12 @@ public enum ErrorCode
     // Roles & Permissions
     ROLE_NOT_FOUND = 8001,
 
+    // Blog
+    BLOG_NOT_FOUND = 8501,
+    BLOG_CATEGORY_NOT_FOUND = 8502,
+    BLOG_CATEGORY_NAME_TAKEN = 8503,
+    BLOG_SLUG_TAKEN = 8504,
+
     // General
     VALIDATION_ERROR = 9001,
     INTERNAL_ERROR = 9999

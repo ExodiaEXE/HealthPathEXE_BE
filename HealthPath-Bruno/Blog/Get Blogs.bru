@@ -1,0 +1,11 @@
+meta {
+  name: Get Blogs
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/blogs?page=1&pageSize=10
+  body: none
+  auth: none
+}

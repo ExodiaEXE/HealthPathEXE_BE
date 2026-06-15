@@ -1,0 +1,23 @@
+meta {
+  name: Create Category
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/admin/blog-categories
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "name": "Dinh dưỡng lành mạnh",
+    "description": "Chia sẻ các kiến thức và thực đơn ăn uống lành mạnh để nâng cao sức khỏe.",
+    "isActive": true
+  }
+}
