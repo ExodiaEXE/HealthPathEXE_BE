@@ -12,7 +12,7 @@ public class CompanionStateDto
     public int Hunger { get; set; }
     public int Happiness { get; set; }
     public int Energy { get; set; }
-    public string RoomTheme { get; set; } = "cozy";
+    public string RoomTheme { get; set; } = "room_1";
     public List<string> EquippedItemSkus { get; set; } = new();
     public bool CanFeed { get; set; }
     public bool CanPet { get; set; }
@@ -73,7 +73,7 @@ public class EquipCompanionItemDto
 
 public class SetRoomThemeDto
 {
-    public string Theme { get; set; } = "cozy";
+    public string Theme { get; set; } = "room_1";
 }
 
 public class PurchaseCompanionItemDto

@@ -52,11 +52,20 @@ public class CompanionService : ICompanionService
     {
         var roomUrls = new Dictionary<string, string>();
         if (!string.IsNullOrWhiteSpace(_assets.RoomCozyGlbUrl))
+        {
             roomUrls["cozy"] = _assets.RoomCozyGlbUrl!;
+            roomUrls["room_1"] = _assets.RoomCozyGlbUrl!;
+        }
         if (!string.IsNullOrWhiteSpace(_assets.RoomModernGlbUrl))
+        {
             roomUrls["modern"] = _assets.RoomModernGlbUrl!;
+            roomUrls["room_2"] = _assets.RoomModernGlbUrl!;
+        }
         if (!string.IsNullOrWhiteSpace(_assets.RoomNatureGlbUrl))
+        {
             roomUrls["nature"] = _assets.RoomNatureGlbUrl!;
+            roomUrls["room_3"] = _assets.RoomNatureGlbUrl!;
+        }
 
         return new CompanionAssetsDto
         {
@@ -258,15 +267,31 @@ public class CompanionService : ICompanionService
         }
 
         pet.Coins -= item.Price;
-        _db.CompanionInventories.Add(new CompanionInventory
+        var inventory = new CompanionInventory
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             CatalogItemId = item.Id,
             IsEquipped = false,
             AcquiredAt = DateTime.UtcNow,
-        });
+        };
+        _db.CompanionInventories.Add(inventory);
         await _db.SaveChangesAsync();
+
+        if (item.Category == "background")
+        {
+            var theme = RoomThemeForBackgroundSku(item.Sku);
+            if (theme != null)
+            {
+                pet.RoomTheme = theme;
+                await SyncBackgroundEquipAsync(userId, theme);
+                pet.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        var isEquipped = await _db.CompanionInventories
+            .AnyAsync(i => i.UserId == userId && i.CatalogItemId == item.Id && i.IsEquipped);
 
         return ApiResponse<CompanionCatalogItemDto>.Ok(new CompanionCatalogItemDto
         {
@@ -278,7 +303,7 @@ public class CompanionService : ICompanionService
             IconEmoji = item.IconEmoji,
             PreviewUrl = item.PreviewUrl,
             IsOwned = true,
-            IsEquipped = false,
+            IsEquipped = isEquipped,
         }, "Mua thành công!");
     }
 
@@ -307,6 +332,15 @@ public class CompanionService : ICompanionService
         }
 
         var pet = await GetOrCreatePetAsync(userId);
+        if (item.Category == "background")
+        {
+            var theme = RoomThemeForBackgroundSku(item.Sku);
+            if (theme != null)
+            {
+                pet.RoomTheme = theme;
+            }
+        }
+
         var equippedSkus = await _db.CompanionInventories
             .Include(i => i.CatalogItem)
             .Where(i => i.UserId == userId && i.IsEquipped)
@@ -321,14 +355,25 @@ public class CompanionService : ICompanionService
 
     public async Task<ApiResponse<CompanionStateDto>> SetRoomThemeAsync(Guid userId, SetRoomThemeDto dto)
     {
-        var allowed = new[] { "cozy", "modern", "nature" };
-        if (!allowed.Contains(dto.Theme))
+        await EnsureSeedDataAsync();
+        var theme = NormalizeRoomTheme(dto.Theme);
+        var allowed = new[] { "room_1", "room_2", "room_3", "room_4" };
+        if (!allowed.Contains(theme))
         {
             return ApiResponse<CompanionStateDto>.Fail("Chủ đề phòng không hợp lệ.", ErrorCode.VALIDATION_ERROR);
         }
 
+        if (!await UserOwnsRoomAsync(userId, theme))
+        {
+            return ApiResponse<CompanionStateDto>.Fail(
+                "Bạn chưa mở khóa phòng này. Mua tại cửa hàng.",
+                ErrorCode.VALIDATION_ERROR);
+        }
+
         var pet = await GetOrCreatePetAsync(userId);
-        pet.RoomTheme = dto.Theme;
+        pet.RoomTheme = theme;
+        await SyncBackgroundEquipAsync(userId, theme);
+        pet.EquippedItemIds = JsonSerializer.Serialize(await GetEquippedSkusAsync(userId));
         pet.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return ApiResponse<CompanionStateDto>.Ok(MapState(pet));
@@ -404,7 +449,11 @@ public class CompanionService : ICompanionService
     private async Task<UserCompanion> GetOrCreatePetAsync(Guid userId)
     {
         var pet = await _db.UserCompanions.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (pet != null) return pet;
+        if (pet != null)
+        {
+            await MigrateRoomThemeIfNeededAsync(pet);
+            return pet;
+        }
 
         pet = new UserCompanion
         {
@@ -416,7 +465,7 @@ public class CompanionService : ICompanionService
             Hunger = 70,
             Happiness = 80,
             Energy = 90,
-            RoomTheme = "cozy",
+            RoomTheme = "room_1",
             EquippedItemIds = "[]",
             LastDecayAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
@@ -515,7 +564,7 @@ public class CompanionService : ICompanionService
             Hunger = pet.Hunger,
             Happiness = pet.Happiness,
             Energy = pet.Energy,
-            RoomTheme = pet.RoomTheme,
+            RoomTheme = NormalizeRoomTheme(pet.RoomTheme),
             EquippedItemSkus = equipped,
             CanFeed = canFeed,
             CanPet = canPet,
@@ -609,7 +658,7 @@ public class CompanionService : ICompanionService
                 Id = Guid.NewGuid(),
                 UserId = userId,
                 CatalogItemId = item.Id,
-                IsEquipped = item.Sku is "plant_green" or "sofa_blue",
+                IsEquipped = item.Sku is "plant_green" or "sofa_blue" or "bg_cozy",
                 AcquiredAt = DateTime.UtcNow,
             });
             ownedSet.Add(item.Id);
@@ -649,9 +698,91 @@ public class CompanionService : ICompanionService
                || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static string NormalizeRoomTheme(string theme) => theme switch
+    {
+        "cozy" => "room_1",
+        "modern" => "room_2",
+        "nature" => "room_3",
+        _ => theme,
+    };
+
+    private async Task MigrateRoomThemeIfNeededAsync(UserCompanion pet)
+    {
+        var normalized = NormalizeRoomTheme(pet.RoomTheme);
+        if (normalized == pet.RoomTheme) return;
+
+        pet.RoomTheme = normalized;
+        pet.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+    }
+
+    private static string? BackgroundSkuForRoom(string roomTheme) =>
+        NormalizeRoomTheme(roomTheme) switch
+        {
+            "room_1" => "bg_cozy",
+            "room_2" => "bg_modern",
+            "room_3" => "bg_nature",
+            "room_4" => "bg_room_4",
+            _ => null,
+        };
+
+    private static string? RoomThemeForBackgroundSku(string sku) => sku switch
+    {
+        "bg_cozy" => "room_1",
+        "bg_modern" => "room_2",
+        "bg_nature" => "room_3",
+        "bg_room_4" => "room_4",
+        _ => null,
+    };
+
+    private async Task<bool> UserOwnsRoomAsync(Guid userId, string roomTheme)
+    {
+        var normalized = NormalizeRoomTheme(roomTheme);
+        if (normalized == "room_1") return true;
+
+        var sku = BackgroundSkuForRoom(normalized);
+        if (sku == null) return false;
+
+        var item = await _db.CompanionCatalogItems.FirstOrDefaultAsync(c => c.Sku == sku);
+        if (item == null) return false;
+
+        return await _db.CompanionInventories.AnyAsync(i =>
+            i.UserId == userId && i.CatalogItemId == item.Id);
+    }
+
+    private async Task SyncBackgroundEquipAsync(Guid userId, string roomTheme)
+    {
+        var sku = BackgroundSkuForRoom(roomTheme);
+        if (sku == null) return;
+
+        var target = await _db.CompanionCatalogItems.FirstOrDefaultAsync(c => c.Sku == sku);
+        if (target == null) return;
+
+        var inventories = await _db.CompanionInventories
+            .Include(i => i.CatalogItem)
+            .Where(i => i.UserId == userId && i.CatalogItem!.Category == "background")
+            .ToListAsync();
+
+        foreach (var inv in inventories)
+        {
+            inv.IsEquipped = inv.CatalogItemId == target.Id;
+        }
+    }
+
+    private async Task<List<string>> GetEquippedSkusAsync(Guid userId) =>
+        await _db.CompanionInventories
+            .Include(i => i.CatalogItem)
+            .Where(i => i.UserId == userId && i.IsEquipped)
+            .Select(i => i.CatalogItem!.Sku)
+            .ToListAsync();
+
     private async Task EnsureSeedDataAsync()
     {
-        if (await _db.CompanionCatalogItems.AnyAsync()) return;
+        if (await _db.CompanionCatalogItems.AnyAsync())
+        {
+            await EnsureCatalogExtrasAsync();
+            return;
+        }
 
         var catalog = new List<CompanionCatalogItem>
         {
@@ -659,9 +790,10 @@ public class CompanionService : ICompanionService
             new() { Id = Guid.NewGuid(), Sku = "desk_books", Name = "Bàn học", Category = "furniture", Price = 50, IconEmoji = "📚", IsDefaultOwned = true, SortOrder = 2, CreatedAt = DateTime.UtcNow },
             new() { Id = Guid.NewGuid(), Sku = "sofa_blue", Name = "Ghế sofa", Category = "furniture", Price = 80, IconEmoji = "🛋️", IsDefaultOwned = true, SortOrder = 3, CreatedAt = DateTime.UtcNow },
             new() { Id = Guid.NewGuid(), Sku = "lamp_warm", Name = "Đèn bàn", Category = "furniture", Price = 40, IconEmoji = "💡", IsDefaultOwned = true, SortOrder = 4, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "bg_cozy", Name = "Phòng ấm cúng", Category = "background", Price = 0, IconEmoji = "🏠", IsDefaultOwned = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "bg_modern", Name = "Phòng hiện đại", Category = "background", Price = 120, IconEmoji = "🏢", SortOrder = 2, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Sku = "bg_nature", Name = "Phòng thiên nhiên", Category = "background", Price = 120, IconEmoji = "🌿", SortOrder = 3, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Sku = "bg_cozy", Name = "Phòng 1", Category = "background", Price = 0, IconEmoji = "🏠", IsDefaultOwned = true, SortOrder = 1, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Sku = "bg_modern", Name = "Phòng 2", Category = "background", Price = 120, IconEmoji = "🏢", SortOrder = 2, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Sku = "bg_nature", Name = "Phòng 3", Category = "background", Price = 120, IconEmoji = "🌿", SortOrder = 3, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Sku = "bg_room_4", Name = "Phòng 4", Category = "background", Price = 150, IconEmoji = "✨", SortOrder = 4, CreatedAt = DateTime.UtcNow },
             new() { Id = Guid.NewGuid(), Sku = "outfit_scarf", Name = "Khăn xanh", Category = "outfit", Price = 60, IconEmoji = "🧣", SortOrder = 1, CreatedAt = DateTime.UtcNow },
         };
         _db.CompanionCatalogItems.AddRange(catalog);
@@ -682,5 +814,25 @@ public class CompanionService : ICompanionService
         _db.CompanionMissionTemplates.AddRange(missions);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Companion catalog and missions seeded.");
+        await EnsureCatalogExtrasAsync();
+    }
+
+    private async Task EnsureCatalogExtrasAsync()
+    {
+        if (await _db.CompanionCatalogItems.AnyAsync(c => c.Sku == "bg_room_4")) return;
+
+        _db.CompanionCatalogItems.Add(new CompanionCatalogItem
+        {
+            Id = Guid.NewGuid(),
+            Sku = "bg_room_4",
+            Name = "Phòng 4",
+            Category = "background",
+            Price = 150,
+            IconEmoji = "✨",
+            SortOrder = 4,
+            CreatedAt = DateTime.UtcNow,
+        });
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("Companion catalog: added bg_room_4.");
     }
 }

@@ -2,11 +2,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
 WORKDIR /app
 
-# Sao chép file giải pháp và các file dự án để chạy restore trước
-COPY *.slnx ./
+# Sao chép file dự án để chạy restore trước
 COPY HealthPath.API/*.csproj ./HealthPath.API/
-COPY HealthPath.Tests/*.csproj ./HealthPath.Tests/
-RUN dotnet restore
+RUN dotnet restore HealthPath.API/HealthPath.API.csproj
 
 # Sao chép toàn bộ code và xuất bản (publish)
 COPY . ./

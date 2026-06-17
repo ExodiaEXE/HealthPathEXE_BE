@@ -58,8 +58,14 @@ public static class DatabaseMigrationExtension
         var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
         if (pending.Count > 0)
         {
-            logger.LogInformation("Đang áp dụng {Count} migration(s) pending: {Migrations}",
-                pending.Count, string.Join(", ", pending));
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "Đang áp dụng {Count} migration(s) pending: {Migrations}",
+                    pending.Count,
+                    string.Join(", ", pending));
+            }
+
             await context.Database.MigrateAsync();
         }
     }

@@ -368,8 +368,20 @@ FodyWeavers.xsd
 
 # Local Environment Variables
 .env
+**/.env
+!.env.example
+!**/.env.example
 
 # Firebase Admin SDK (service account private key)
 firebase-service-account.json
 **/firebase-service-account*.json
 **/*-firebase-adminsdk-*.json
+
+# Google Play / GCP service account (IAP verify)
+**/workspace-*.json
+**/play-service-account*.json
+**/*service*account*.json
+!**/*service*account*.example.json
+
+# Local publish / CI artifacts
+_build_out/

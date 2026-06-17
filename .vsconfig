@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "components": [
+    "Microsoft.Net.Component.4.8.SDK",
+    "Microsoft.Net.Component.4.8.TargetingPack",
+    "Microsoft.VisualStudio.Component.NuGet",
+    "Microsoft.VisualStudio.Component.NuGet.BuildTools",
+    "Microsoft.VisualStudio.Component.Roslyn.Compiler",
+    "Microsoft.VisualStudio.ComponentGroup.WebTools",
+    "Microsoft.VisualStudio.ComponentGroup.WebToolsExtensions",
+    "Microsoft.VisualStudio.ComponentGroup.WebToolsExtensions.CMake",
+    "Microsoft.VisualStudio.Component.DotNetCore.SDK",
+    "Microsoft.VisualStudio.Component.IntelliCode",
+    "Microsoft.VisualStudio.ComponentGroup.WebToolsExtensions.Web",
+    "Microsoft.NetCore.Component.DevelopmentTools",
+    "Microsoft.NetCore.Component.SDK",
+    "Microsoft.NetCore.Component.Runtime.10.0"
+  ]
+}

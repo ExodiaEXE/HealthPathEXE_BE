@@ -1,4 +1,10 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+  </Configurations>
   <Project Path="HealthPath.API/HealthPath.API.csproj" />
-  <Project Path="HealthPath.Tests/HealthPath.Tests.csproj" />
+  <Project Path="HealthPath.Tests/HealthPath.Tests.csproj">
+    <Build Solution="Debug|Any CPU" Project="false" />
+    <Build Solution="Release|Any CPU" Project="false" />
+  </Project>
 </Solution>

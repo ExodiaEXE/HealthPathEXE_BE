@@ -257,23 +257,34 @@ namespace HealthPath.API.Services
                     "NOT_MEMBER");
             }
 
-            var today = DateTime.UtcNow.Date;
+            var dayStart = DateTime.UtcNow.Date;
+            var dayEnd = dayStart.AddDays(1);
             var exists = await _context.GroupTeamCheckins.AnyAsync(c =>
                 c.GroupId == groupId &&
                 c.UserId == userId &&
                 c.DeletedAt == null &&
-                c.CheckinDate == today);
-            if (!exists)
+                c.CheckinDate >= dayStart &&
+                c.CheckinDate < dayEnd);
+            if (exists)
+            {
+                return ApiResponse<object>.Ok(new { }, "Điểm danh nhóm thành công.");
+            }
+
+            try
             {
                 _context.GroupTeamCheckins.Add(new GroupTeamCheckin
                 {
                     Id = Guid.NewGuid(),
                     GroupId = groupId,
                     UserId = userId,
-                    CheckinDate = today,
+                    CheckinDate = DateTime.SpecifyKind(dayStart, DateTimeKind.Utc),
                     CreatedAt = DateTime.UtcNow,
                 });
                 await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                // Double tap / race: row already inserted for today.
             }
 
             return ApiResponse<object>.Ok(new { }, "Điểm danh nhóm thành công.");
@@ -419,6 +430,13 @@ namespace HealthPath.API.Services
                 MemberCount = await _context.GroupMembers.CountAsync(
                     gm => gm.GroupId == groupId && gm.DeletedAt == null),
             };
+        }
+
+        private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+        {
+            var message = ex.InnerException?.Message ?? ex.Message;
+            return message.Contains("23505", StringComparison.Ordinal)
+                   || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -76,7 +76,13 @@ public class IapVerificationService : IIapVerificationService
                     $"Google Play không trả về line item cho sản phẩm {productId}.");
             }
 
-            if (!string.Equals(lineItem.ProductId, productId, StringComparison.OrdinalIgnoreCase))
+            var isSubscriptionProductRequest = string.Equals(
+                productId,
+                "healthpath_subscription",
+                StringComparison.OrdinalIgnoreCase);
+
+            if (!isSubscriptionProductRequest &&
+                !string.Equals(lineItem.ProductId, productId, StringComparison.OrdinalIgnoreCase))
             {
                 return InvalidAndroid(
                     $"Product ID không khớp: yêu cầu {productId}, Google trả về {lineItem.ProductId}.");
@@ -116,11 +122,15 @@ public class IapVerificationService : IIapVerificationService
 
             var purchasedAt = subscription.StartTimeDateTimeOffset?.UtcDateTime ?? utcNow;
             var orderId = subscription.LatestOrderId ?? purchaseToken;
+            var autoRenewEnabled = lineItem.AutoRenewingPlan?.AutoRenewEnabled ?? true;
+            var subscriptionState = subscription.SubscriptionState;
 
             _logger.LogInformation(
-                "Google Play verification OK: order={OrderId}, expires={ExpiresAt}",
+                "Google Play verification OK: order={OrderId}, expires={ExpiresAt}, state={State}, autoRenew={AutoRenew}",
                 orderId,
-                expiresAt);
+                expiresAt,
+                subscriptionState,
+                autoRenewEnabled);
 
             return new IapVerificationResult
             {
@@ -131,6 +141,10 @@ public class IapVerificationService : IIapVerificationService
                 ExpiresAt = expiresAt,
                 Amount = 0,
                 Currency = "VND",
+                BasePlanId = lineItem.OfferDetails?.BasePlanId,
+                LinkedPurchaseToken = subscription.LinkedPurchaseToken,
+                AutoRenewEnabled = autoRenewEnabled,
+                SubscriptionState = subscriptionState,
             };
         }
         catch (Google.GoogleApiException ex)
@@ -190,7 +204,8 @@ public class IapVerificationService : IIapVerificationService
 
         var state = subscription.SubscriptionState ?? string.Empty;
         return state is "SUBSCRIPTION_STATE_ACTIVE"
-            or "SUBSCRIPTION_STATE_IN_GRACE_PERIOD";
+            or "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"
+            or "SUBSCRIPTION_STATE_CANCELED";
     }
 
     private AndroidPublisherService CreateAndroidPublisherService(string serviceAccountKey)

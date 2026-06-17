@@ -205,4 +205,70 @@ public class SubscriptionServiceTests
         result.Success.Should().BeFalse();
         result.ErrorCode.Should().Be(ErrorCode.IAP_VERIFICATION_FAILED.ToString());
     }
+
+    [Fact]
+    public async Task VerifyAndFulfillPurchaseAsync_DuplicateOrder_IsIdempotent()
+    {
+        using var context = DbContextFactory.Create();
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+
+        context.Users.Add(new User
+        {
+            Id = userId,
+            Email = "dup@test.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        context.SubscriptionPlans.Add(new SubscriptionPlan
+        {
+            Id = planId,
+            Name = "Premium Monthly",
+            Code = "premium_monthly",
+            GoogleProductId = "healthpath-premium-monthly",
+            IsActive = true,
+            PriceMonthly = 59000,
+            PriceYearly = 590000,
+            Currency = "VND",
+            Features = "[]",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var requestDto = new VerifyReceiptRequestDto
+        {
+            Platform = "GooglePlay",
+            ProductId = "healthpath_subscription",
+            PurchaseToken = "google_token_same",
+            BillingCycle = "monthly"
+        };
+
+        var verificationResult = new IapVerificationResult
+        {
+            IsValid = true,
+            PlatformTransactionId = "GPA.duplicate-order",
+            OriginalTransactionId = "google_token_same",
+            PurchasedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMonths(1),
+            Amount = 59000,
+            Currency = "VND",
+            BasePlanId = "healthpath-premium-monthly"
+        };
+
+        _iapMock.Setup(x => x.VerifyAndroidPurchaseAsync(requestDto.ProductId, requestDto.PurchaseToken))
+            .ReturnsAsync(verificationResult);
+
+        var service = new SubscriptionService(context, _iapMock.Object, _loggerMock.Object);
+
+        var first = await service.VerifyAndFulfillPurchaseAsync(userId, requestDto);
+        var second = await service.VerifyAndFulfillPurchaseAsync(userId, requestDto);
+
+        first.Success.Should().BeTrue();
+        second.Success.Should().BeTrue();
+        context.Transactions.Should().HaveCount(1);
+        context.UserSubscriptions.Should().HaveCount(1);
+        context.UserSubscriptions.Single().Status.Should().Be("active");
+    }
 }

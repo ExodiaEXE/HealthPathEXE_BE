@@ -1,6 +1,7 @@
 using HealthPath.API.Middlewares;
 using HealthPath.API.Models;
 using HealthPath.API.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -61,6 +62,7 @@ builder.Services.AddDbContext<HealthpathDbContext>(options =>
                 "08006", // connection_failure
                 "08001", // sqlclient_unable_to_establish_sqlconnection
                 "08003", // connection_does_not_exist
+                "57P03", // cannot_connect_now
             ])));
 
 // 2. Đăng ký các Service (Dependency Injection)
@@ -177,6 +179,12 @@ builder.Services.AddSwaggerGen(c =>
 
 
 var app = builder.Build();
+
+// Reverse proxy (nginx trên VPS) — cần cho HTTPS termination, không đổi API contract mobile
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 // Đăng ký Middleware xử lý lỗi tập trung đầu tiên trong pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
