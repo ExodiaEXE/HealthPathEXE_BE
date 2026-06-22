@@ -32,6 +32,17 @@ namespace HealthPath.Tests.Services
         // --- Helper to setup admin role in DB ---
         private async Task SetupAdminRoleAsync(HealthpathDbContext dbContext, Guid adminUserId)
         {
+            var user = new User
+            {
+                Id = adminUserId,
+                FullName = "Admin User",
+                Email = "admin@healthpath.vn",
+                PasswordHash = "hash",
+                IsActive = true,
+                IsVerified = true
+            };
+            dbContext.Users.Add(user);
+
             var adminRole = new Role
             {
                 Id = Guid.NewGuid(),

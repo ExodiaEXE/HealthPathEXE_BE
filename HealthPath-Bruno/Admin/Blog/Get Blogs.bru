@@ -1,0 +1,15 @@
+meta {
+  name: Get Blogs
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/admin/blogs?page=1&pageSize=10
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}

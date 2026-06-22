@@ -54,6 +54,9 @@ public partial class HealthpathDbContext : DbContext
 
     public virtual DbSet<Admin> Admins { get; set; } = null!;
 
+    public virtual DbSet<BlogCategory> BlogCategories { get; set; } = null!;
+    public virtual DbSet<Blog> Blogs { get; set; } = null!;
+
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //    => optionsBuilder.UseNpgsql("Host=localhost;Database=healthpath_db;Username=postgres;Password=1234567890");
 
@@ -1266,6 +1269,86 @@ public partial class HealthpathDbContext : DbContext
             entity.HasOne(d => d.Template).WithMany()
                 .HasForeignKey(d => d.TemplateId)
                 .HasConstraintName("companion_mission_progress_template_id_fkey");
+        });
+
+        modelBuilder.Entity<BlogCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("blog_categories_pkey");
+
+            entity.ToTable("blog_categories");
+
+            entity.HasIndex(e => e.Slug, "uq_blog_categories_slug").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.Name)
+                .HasMaxLength(150)
+                .HasColumnName("name");
+            entity.Property(e => e.Slug)
+                .HasMaxLength(200)
+                .HasColumnName("slug");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+        });
+
+        modelBuilder.Entity<Blog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("blogs_pkey");
+
+            entity.ToTable("blogs");
+
+            entity.HasIndex(e => e.Slug, "uq_blogs_slug").IsUnique();
+            entity.HasIndex(e => e.CategoryId, "idx_blogs_category").HasFilter("(deleted_at IS NULL)");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.Title)
+                .HasMaxLength(250)
+                .HasColumnName("title");
+            entity.Property(e => e.Slug)
+                .HasMaxLength(300)
+                .HasColumnName("slug");
+            entity.Property(e => e.Body).HasColumnName("body");
+            entity.Property(e => e.Summary)
+                .HasMaxLength(500)
+                .HasColumnName("summary");
+            entity.Property(e => e.ThumbnailUrl).HasColumnName("thumbnail_url");
+            entity.Property(e => e.CategoryId).HasColumnName("category_id");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.Views)
+                .HasDefaultValue(0)
+                .HasColumnName("views");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasOne(d => d.Category).WithMany(p => p.Blogs)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("blogs_category_id_fkey");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany()
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("blogs_created_by_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);
