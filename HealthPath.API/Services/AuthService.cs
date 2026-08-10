@@ -55,8 +55,8 @@ namespace HealthPath.API.Services
                 return ApiResponse<object>.Fail("Định dạng email không hợp lệ!", ErrorCode.VALIDATION_ERROR);
             }
 
-            // 1. Kiểm tra email trùng
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+            // 1. Kiểm tra email trùng (bỏ qua tài khoản đã soft-delete)
+            if (await _context.Users.AnyAsync(u => u.Email == request.Email && u.DeletedAt == null))
             {
                 return ApiResponse<object>.Fail("Email này đã được sử dụng!", ErrorCode.EMAIL_TAKEN);
             }

@@ -11,4 +11,5 @@ public interface IAdminUserService
     Task<ApiResponse<AdminUserDetailDto>> GetUserDetailAsync(Guid id);
     Task<ApiResponse<AdminUserSummaryDto>> CreateUserAsync(AdminCreateUserDto request);
     Task<ApiResponse<bool>> ToggleUserActiveAsync(Guid id);
+    Task<ApiResponse<bool>> DeleteUserAsync(Guid id);
 }

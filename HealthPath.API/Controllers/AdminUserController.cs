@@ -68,4 +68,16 @@ public class AdminUserController : ControllerBase
         }
         return Ok(response);
     }
+
+    /// <summary>Soft-delete user account (sets DeletedAt, frees email for re-register).</summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser(Guid id)
+    {
+        var response = await _adminUserService.DeleteUserAsync(id);
+        if (!response.Success)
+        {
+            return NotFound(response);
+        }
+        return Ok(response);
+    }
 }

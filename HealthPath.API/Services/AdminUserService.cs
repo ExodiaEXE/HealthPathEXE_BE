@@ -190,4 +190,29 @@ public class AdminUserService : IAdminUserService
         string action = user.IsActive ? "Mở khóa" : "Khóa";
         return ApiResponse<bool>.Ok(user.IsActive, $"{action} tài khoản người dùng thành công.");
     }
+
+    public async Task<ApiResponse<bool>> DeleteUserAsync(Guid id)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
+
+        if (user == null)
+        {
+            return ApiResponse<bool>.Fail("Không tìm thấy người dùng.", ErrorCode.USER_NOT_FOUND);
+        }
+
+        var now = DateTime.UtcNow;
+        // Free unique email / social indexes so the address can register again.
+        user.Email = $"{user.Email}#deleted#{user.Id:N}";
+        user.GoogleId = null;
+        user.FacebookId = null;
+        user.IsActive = false;
+        user.DeletedAt = now;
+        user.UpdatedAt = now;
+        user.OtpCode = null;
+        user.OtpExpiryTime = null;
+
+        await _context.SaveChangesAsync();
+        return ApiResponse<bool>.Ok(true, "Đã xóa tài khoản người dùng (soft delete).");
+    }
 }
